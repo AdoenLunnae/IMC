@@ -1,3 +1,5 @@
+#ifndef NEURON_HPP
+#define NEURON_HPP
 #include <vector>
 
 class Neuron {
@@ -26,3 +28,4 @@ public:
 
     void feed(std::vector<double> inputs);
 };
+#endif /* NEURON_HPP */
