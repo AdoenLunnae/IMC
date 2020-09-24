@@ -12,44 +12,47 @@ class MLP {
 private:
     std::vector<Layer> _layers;
     // Free memory for the data structures
-    void freeMemory();
+    void _freeMemory();
 
     // Feel all the weights (w) with random numbers between -1 and +1
-    void randomWeights();
+    void _randomWeights();
 
     // Feed the input neurons of the network with a vector passed as an argument
-    void feedInputs(double* input);
+    void _feedInputs(double* input);
 
     // Get the outputs predicted by the network (out vector the output layer) and save them in the vector passed as an argument
-    void getOutputs(double* output);
+    void _getOutputs(double* output);
 
     // Make a copy of all the weights (copy w in wCopy)
-    void copyWeights();
+    void _copyWeights();
 
     // Restore a copy of all the weights (copy wCopy in w)
-    void restoreWeights();
+    void _restoreWeights();
 
     // Calculate and propagate the outputs of the neurons, from the first layer until the last one -->-->
-    void forwardPropagate();
+    void _forwardPropagate();
 
     // Obtain the output error (MSE) of the out vector of the output layer wrt a target vector and return it
-    double obtainError(double* target);
+    double _obtainError(double* target);
 
     // Backpropagate the output error wrt a vector passed as an argument, from the last layer to the first one <--<--
-    void backpropagateError(double* target);
+    void _backpropagateError(double* target);
 
     // Accumulate the changes produced by one pattern and save them in deltaW
-    void accumulateChange();
+    void _accumulateChange();
 
     // Update the network weights, from the first layer to the last one
-    void weightAdjustment();
+    void _weightAdjustment();
 
     // Print the network, i.e. all the weight matrices
-    void printNetwork();
+    void _printNetwork();
 
     // Perform an epoch: forward propagate the inputs, backpropagate the error and adjust the weights
     // input is the input vector of the pattern and target is the desired output vector of the pattern
-    void performEpochOnline(double* input, double* target);
+    void _performEpochOnline(double* input, double* target);
+
+    //
+    double* _lastLayerPointer() const { return &_layers[_layers.size()][0]; }
 
 public:
     // Values of the parameters (they are public and can be updated from outside)

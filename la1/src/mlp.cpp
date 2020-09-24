@@ -1,45 +1,70 @@
 #include "mlp.hpp"
 #include "util.h"
 #include <fstream>
+#include <vector>
 
-void MLP::freeMemory();
+using std::vector;
 
-// Feel all the weights (w) with random numbers between -1 and +1
-void MLP::randomWeights();
+void MLP::_freeMemory() {}
+
+// Fill all the weights (w) with random numbers between -1 and +1
+void MLP::_randomWeights()
+{
+    uint inputsPerNeuron = 1;
+
+    for (Layer layer : _layers) {
+        layer.randomWeights(inputsPerNeuron);
+        inputsPerNeuron = layer.numberOfNeurons();
+    }
+}
 
 // Feed the input neurons of the network with a vector passed as an argument
-void MLP::feedInputs(double* input);
+void MLP::_feedInputs(double* input)
+{
+    vector<double> inputVector;
+    for (int i = 0; i < _layers[0].numberOfNeurons(); ++i)
+        inputVector.push_back(input[i]);
+
+    _layers[0].feed(inputVector);
+}
 
 // Get the outputs predicted by the network (out vector the output layer) and save them in the vector passed as an argument
-void MLP::getOutputs(double* output);
+void MLP::_getOutputs(double* output)
+{
+    output = _lastLayerPointer();
+}
 
 // Make a copy of all the weights (copy w in wCopy)
-void MLP::copyWeights();
+void MLP::_copyWeights() {}
 
 // Restore a copy of all the weights (copy wCopy in w)
-void MLP::restoreWeights();
+void MLP::_restoreWeights() {}
 
 // Calculate and propagate the outputs of the neurons, from the first layer until the last one -->-->
-void MLP::forwardPropagate();
+void MLP::_forwardPropagate()
+{
+    for (uint i = 1; i < _layers.size(); ++i)
+        _layers[i].feed(_layers[i - 1].out());
+}
 
 // Obtain the output error (MSE) of the out vector of the output layer wrt a target vector and return it
-double MLP::obtainError(double* target);
+double MLP::_obtainError(double* target) {}
 
 // Backpropagate the output error wrt a vector passed as an argument, from the last layer to the first one <--<--
-void MLP::backpropagateError(double* target);
+void MLP::_backpropagateError(double* target) {}
 
 // Accumulate the changes produced by one pattern and save them in deltaW
-void MLP::accumulateChange();
+void MLP::_accumulateChange() {}
 
 // Update the network weights, from the first layer to the last one
-void MLP::weightAdjustment();
+void MLP::_weightAdjustment() {}
 
 // Print the network, i.e. all the weight matrices
-void MLP::printNetwork();
+void MLP::_printNetwork() {}
 
 // Perform an epoch: forward propagate the inputs, backpropagate the error and adjust the weights
 // input is the input vector of the pattern and target is the desired output vector of the pattern
-void performEpochOnline(double* input, double* target);
+void MLP::_performEpochOnline(double* input, double* target) {}
 
 // Constructor: Default values for all the parameters
 MLP::MLP() {}
@@ -60,9 +85,8 @@ int MLP::initialize(int nl, int npl[])
 Dataset* MLP::readData(const char* fileName)
 {
     Dataset* dataset;
-    std::ifstream& dataFile;
+    std::ifstream dataFile(fileName, std::ios::in);
 
-    dataFile.open(fileName, std::ios::in);
     dataFile >> dataset->nOfInputs >> dataset->nOfOutputs >> dataset->nOfPatterns;
     dataset->inputs = new double*[dataset->nOfPatterns];
 
@@ -83,10 +107,38 @@ Dataset* MLP::readData(const char* fileName)
 }
 
 // Test the network with a dataset and return the MSE
-double MLP::test(Dataset* dataset) {}
+double MLP::test(Dataset* dataset)
+{
+    double** predictedOutputs = new double*[dataset->nOfPatterns];
+    double accumulatedSquareError = .0, meanSquaredError;
+
+    for (uint i = 0; i < dataset->nOfPatterns; ++i)
+        predictedOutputs[i] = new double[dataset->nOfOutputs];
+
+    for (uint patternIndex = 0; patternIndex < dataset->nOfPatterns; ++patternIndex) {
+        _feedInputs(dataset->inputs[patternIndex]);
+        _forwardPropagate();
+        _getOutputs(predictedOutputs[patternIndex]);
+        accumulatedSquareError = _obtainError(dataset->outputs[patternIndex]);
+    }
+    meanSquaredError = accumulatedSquareError / dataset->nOfPatterns;
+    return meanSquaredError;
+}
 
 // Obtain the predicted outputs for a dataset
-void MLP::predict(Dataset* testDataset) {}
+void MLP::predict(Dataset* testDataset)
+{
+    double** predictedOutputs = new double*[testDataset->nOfPatterns];
+
+    for (uint i = 0; i < testDataset->nOfPatterns; ++i)
+        predictedOutputs[i] = new double[testDataset->nOfOutputs];
+
+    for (uint patternIndex = 0; patternIndex < testDataset->nOfPatterns; ++patternIndex) {
+        _feedInputs(testDataset->inputs[patternIndex]);
+        _forwardPropagate();
+        _getOutputs(predictedOutputs[patternIndex]);
+    }
+}
 
 // Perform an online training for a specific dataset
 void MLP::trainOnline(Dataset* trainDataset)
@@ -95,7 +147,7 @@ void MLP::trainOnline(Dataset* trainDataset)
     for (uint i = 0; i < trainDataset->nOfPatterns; ++i) {
         double* inputs = trainDataset->inputs[i];
         double* outputs = trainDataset->outputs[i];
-        performEpochOnline(inputs, outputs);
+        _performEpochOnline(inputs, outputs);
     }
 }
 
