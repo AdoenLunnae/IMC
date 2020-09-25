@@ -24,3 +24,15 @@ vector<double> Layer::out() const
 
     return output;
 }
+
+void Layer::backpropagate(const Layer& nextLayer)
+{
+    for (int i = 0; i < numberOfNeurons(); ++i)
+        _neurons[i].backpropagate(nextLayer, i);
+}
+
+void Layer::backpropagate(double* target)
+{
+    for (int i = 0; i < numberOfNeurons(); ++i)
+        _neurons[i].backpropagate(target[i]);
+}

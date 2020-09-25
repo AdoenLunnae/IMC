@@ -1,5 +1,6 @@
 #include "mlp.hpp"
 #include "util.h"
+#include <cmath>
 #include <fstream>
 #include <vector>
 
@@ -48,10 +49,30 @@ void MLP::_forwardPropagate()
 }
 
 // Obtain the output error (MSE) of the out vector of the output layer wrt a target vector and return it
-double MLP::_obtainError(double* target) {}
+double MLP::_obtainError(double* target)
+{
+    double squaredError = .0;
+    double currentError;
+    double* output;
+    _getOutputs(output);
+    for (uint i = 0; i < _lastLayer().numberOfNeurons(); ++i) {
+        currentError = target[i] - output[i];
+        squaredError += pow(currentError, 2);
+    }
+    return squaredError / _lastLayer().numberOfNeurons();
+}
 
 // Backpropagate the output error wrt a vector passed as an argument, from the last layer to the first one <--<--
-void MLP::_backpropagateError(double* target) {}
+void MLP::_backpropagateError(double* target)
+{
+    double outError;
+
+    _lastLayer().backpropagate(target);
+
+    for (uint i = _layers.size() - 1; i >= 0; --i) {
+        _layers[i].backpropagate(_layers[i + 1]);
+    }
+}
 
 // Accumulate the changes produced by one pattern and save them in deltaW
 void MLP::_accumulateChange() {}
@@ -157,9 +178,9 @@ void MLP::trainOnline(Dataset* trainDataset)
 void MLP::runOnlineBackPropagation(Dataset* trainDataset, Dataset* testDataset, int maxiter, double* errorTrain, double* errorTest)
 {
     errorTrain = new double[trainDataset->nOfPatterns];
-    for (uint iter = 0; iter < maxiter; ++iter) {
+    for (uint iter = 0; iter < maxiter; ++iter)
         trainOnline(testDataset);
-    }
+
     *errorTrain = test(trainDataset);
     *errorTest = test(testDataset);
 }

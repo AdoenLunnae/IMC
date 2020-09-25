@@ -51,8 +51,9 @@ private:
     // input is the input vector of the pattern and target is the desired output vector of the pattern
     void _performEpochOnline(double* input, double* target);
 
-    //
-    double* _lastLayerPointer() const { return &_layers[_layers.size()][0]; }
+    //Returns a read/write reference to the output layer
+    Layer& _lastLayer() { return _layers[_layers.size()]; }
+    double* _lastLayerPointer() { return &_lastLayer().out()[0]; }
 
 public:
     // Values of the parameters (they are public and can be updated from outside)
