@@ -1,5 +1,9 @@
+#ifndef MLP_HPP
+#define MLP_HPP
+
 #include "layer.hpp"
 
+namespace imc {
 struct Dataset {
     int nOfInputs; /* Number of inputs */
     int nOfOutputs; /* Number of outputs */
@@ -14,6 +18,8 @@ private:
     // Free memory for the data structures
     void _freeMemory();
 
+    void _clearDeltas();
+
     // Feel all the weights (w) with random numbers between -1 and +1
     void _randomWeights();
 
@@ -21,7 +27,7 @@ private:
     void _feedInputs(double* input);
 
     // Get the outputs predicted by the network (out vector the output layer) and save them in the vector passed as an argument
-    void _getOutputs(double* output);
+    void _getOutputs(double** output);
 
     // Make a copy of all the weights (copy w in wCopy)
     void _copyWeights();
@@ -52,8 +58,9 @@ private:
     void _performEpochOnline(double* input, double* target);
 
     //Returns a read/write reference to the output layer
-    Layer& _lastLayer() { return _layers[_layers.size()]; }
-    double* _lastLayerPointer() { return &_lastLayer().out()[0]; }
+    Layer& _lastLayer() { return _layers[_layers.size() - 1]; }
+
+    double* _outputPointer();
 
 public:
     // Values of the parameters (they are public and can be updated from outside)
@@ -96,3 +103,5 @@ public:
     // Optional Kaggle: Load the model weights from a textfile
     bool readWeights(const char* archivo);
 };
+};
+#endif

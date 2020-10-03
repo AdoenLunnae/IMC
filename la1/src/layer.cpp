@@ -1,28 +1,47 @@
 #include "layer.hpp"
 #include "neuron.hpp"
 #include <vector>
+
 using std::vector;
+using namespace imc;
+
+Layer::Layer(const int& nOfNeurons, const int& nOfInputs)
+{
+    _neurons = *new std::vector<Neuron>(nOfNeurons, *new Neuron(nOfInputs));
+}
+
+void Layer::clearDeltas()
+{
+    for (Neuron& neuron : _neurons)
+        neuron.clearDeltas();
+}
 
 void Layer::feed(vector<double> inputs)
 {
-    for (Neuron neuron : _neurons)
+    _out.clear();
+    _input = inputs;
+    for (Neuron& neuron : _neurons) {
         neuron.feed(inputs);
+        _out.push_back(neuron.out());
+    }
 }
 
-void Layer::randomWeights(size_t numInputs)
+void Layer::randomWeights(unsigned int numInputs)
 {
-    for (Neuron neuron : _neurons)
+    for (Neuron& neuron : _neurons)
         neuron.randomWeights(numInputs);
 }
 
-vector<double> Layer::out() const
+void Layer::copyWeights()
 {
-    vector<double> output;
+    for (Neuron& neuron : _neurons)
+        neuron.copyWeights();
+}
 
-    for (Neuron neuron : _neurons)
-        output.push_back(neuron.out());
-
-    return output;
+void Layer::restoreWeights()
+{
+    for (Neuron& neuron : _neurons)
+        neuron.restoreWeights();
 }
 
 void Layer::backpropagate(const Layer& nextLayer)
@@ -35,4 +54,21 @@ void Layer::backpropagate(double* target)
 {
     for (int i = 0; i < numberOfNeurons(); ++i)
         _neurons[i].backpropagate(target[i]);
+}
+
+void Layer::accumulateChange()
+{
+    for (Neuron& neuron : _neurons)
+        neuron.acummulateChange(_input);
+}
+
+void Layer::weightAdjustement(const double& learningRate, const double& momentumRate)
+{
+    for (Neuron& neuron : _neurons)
+        neuron.weightAdjustement(learningRate, momentumRate);
+}
+
+vector<vector<double>> Layer::weightMatrix() const
+{
+    vector<vector<double>> matrix = *new vector<vector<double>>(numberOfNeurons());
 }
