@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include "mlp.hpp"
+#include "util.h"
 
 using namespace imc;
 using namespace std;
@@ -23,21 +24,35 @@ using namespace std;
 int main(int argc, char** argv)
 {
     // Process arguments of the command line
-    bool Tflag = 0, wflag = 0, pflag = 0, tflag = 0;
+    bool Tflag = 0, wflag = 0, pflag = 0, tflag = 0, iflag = 0, hflag = 0, lflag = 0;
     char *trainFilename = NULL, *wvalue = NULL, *testFilename = NULL;
+    int hiddenLayers, maxIterations, neuronsPerLayer;
     int c;
 
     opterr = 0;
 
     // a: Option that requires an argument
     // a:: The argument required is optional
-    while ((c = getopt(argc, argv, "t:T:w:p")) != -1) {
+    while ((c = getopt(argc, argv, "i:l:h:t:T:w:p")) != -1) {
         // The parameters needed for using the optional prediction mode of Kaggle have been included.
         // You should add the rest of parameters needed for the lab assignment.
         switch (c) {
         case 't':
             trainFilename = optarg;
             tflag = true;
+            break;
+        case 'l':
+            hiddenLayers = atoi(optarg);
+            lflag = true;
+            break;
+        case 'h':
+            neuronsPerLayer = atoi(optarg);
+            hflag = true;
+            break;
+        case 'i':
+            maxIterations = atoi(optarg);
+            iflag = true;
+            break;
         case 'T':
             Tflag = true;
             testFilename = optarg;
@@ -50,7 +65,7 @@ int main(int argc, char** argv)
             pflag = true;
             break;
         case '?':
-            if (optopt == 'T' || optopt == 'w' || optopt == 'p')
+            if (optopt == 'T' || optopt == 'w' || optopt == 'p' || optopt == 'i' || optopt == 'h' || optopt == 'l')
                 fprintf(stderr, "The option -%c requires an argument.\n", optopt);
             else if (isprint(optopt))
                 fprintf(stderr, "Unknown option `-%c'.\n", optopt);
@@ -73,18 +88,18 @@ int main(int argc, char** argv)
         MLP mlp;
 
         // Parameters of the mlp. For example, mlp.eta = value;
-        int iterations = 1000; // This should be corrected
+        int iterations = iflag ? maxIterations : 1000; // This should be corrected
 
         // Read training and test data: call to mlp.readData(...)
-        if (!tflag) {
+        if (!tflag)
             perror("Specify the train dataset with th -t flag");
-        }
+
         Dataset* trainDataset = mlp.readData(trainFilename); // This should be corrected
         Dataset* testDataset = Tflag ? mlp.readData(testFilename) : trainDataset; // This should be corrected
 
         // Initialize topology vector
-        int layers = 3;
-        int topology[] = { trainDataset->nOfInputs, 4, trainDataset->nOfOutputs }; // This should be corrected
+        int layers = lflag ? hiddenLayers : 1;
+        int topology[] = { trainDataset->nOfInputs, hflag ? neuronsPerLayer : 5, trainDataset->nOfOutputs }; // This should be corrected
 
         // Initialize the network using the topology vector
         mlp.initialize(layers + 2, topology);
@@ -101,6 +116,7 @@ int main(int argc, char** argv)
             srand(seeds[i]);
             mlp.runOnlineBackPropagation(trainDataset, testDataset, iterations, &(trainErrors[i]), &(testErrors[i]));
             cout << "We end!! => Final test error: " << testErrors[i] << endl;
+            //mlp.predict(testDataset);
 
             // We save the weights every time we find a better model
             if (wflag && testErrors[i] <= bestTestError) {
@@ -108,18 +124,20 @@ int main(int argc, char** argv)
                 bestTestError = testErrors[i];
             }
         }
-
         cout << "WE HAVE FINISHED WITH ALL THE SEEDS" << endl;
 
         double averageTestError = 0, stdTestError = 0;
         double averageTrainError = 0, stdTrainError = 0;
 
+        util::getStatistics(testErrors, 5, averageTestError, stdTestError);
+        util::getStatistics(trainErrors, 5, averageTrainError, stdTrainError);
         // Obtain training and test averages and standard deviations
 
         cout << "FINAL REPORT" << endl;
         cout << "************" << endl;
         cout << "Train error (Mean +- SD): " << averageTrainError << " +- " << stdTrainError << endl;
         cout << "Test error (Mean +- SD):          " << averageTestError << " +- " << stdTestError << endl;
+
         return EXIT_SUCCESS;
     } else {
 

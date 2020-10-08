@@ -24,6 +24,7 @@ public:
     std::vector<double> out() const { return _out; };
 
     void clearDeltas();
+    void saveDeltas();
     void randomWeights(unsigned int numInputs);
 
     void copyWeights();

@@ -4,6 +4,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <vector>
 
 using std::vector;
@@ -15,6 +16,12 @@ void MLP::_clearDeltas()
 {
     for (Layer& layer : _layers)
         layer.clearDeltas();
+}
+
+void MLP::_saveDeltas()
+{
+    for (Layer& layer : _layers)
+        layer.saveDeltas();
 }
 
 // Fill all the weights (w) with random numbers between -1 and +1
@@ -112,13 +119,13 @@ void MLP::_printNetwork() {}
 // input is the input vector of the pattern and target is the desired output vector of the pattern
 void MLP::_performEpochOnline(double* input, double* target)
 {
-
     _clearDeltas();
     _feedInputs(input);
     _forwardPropagate();
     _backpropagateError(target);
     _accumulateChange();
     _weightAdjustment();
+    _saveDeltas();
 }
 
 double* MLP::_outputPointer()
@@ -145,7 +152,6 @@ MLP::~MLP() {}
 
 // Allocate memory for the data structures
 // nl is the number of layers and npl is a vetor containing the number of neurons in every layer
-// Give values to Layer* layers
 int MLP::initialize(int nl, int npl[])
 {
     _layers = *new vector<Layer>(nl);
@@ -166,7 +172,7 @@ Dataset* MLP::readData(const char* fileName)
     std::ifstream dataFile(fileName, std::ifstream::in);
     if (!dataFile) {
         std::cerr << "Error opening file " << fileName << ". Exiting.\n";
-        return NULL;
+        exit(EXIT_FAILURE);
     }
 
     dataFile >> dataset->nOfInputs;
@@ -183,7 +189,7 @@ Dataset* MLP::readData(const char* fileName)
             dataFile >> dataset->inputs[patternIndex][inputIndex];
 
         for (uint outputIndex = 0; outputIndex < dataset->nOfOutputs; ++outputIndex)
-            dataFile >> dataset->inputs[patternIndex][outputIndex];
+            dataFile >> dataset->outputs[patternIndex][outputIndex];
     }
 
     dataFile.close();
@@ -206,6 +212,22 @@ double MLP::test(Dataset* dataset)
     return meanError;
 }
 
+void MLP::_predict(Dataset* dataset, const unsigned int& patternIndex)
+{
+    double* predictedOutputs = new double[dataset->nOfOutputs];
+    _feedInputs(dataset->inputs[patternIndex]);
+    _forwardPropagate();
+    _getOutputs(&predictedOutputs);
+    std::cout << "Pattern " << patternIndex << "\n\tpredicted output\n\t";
+    for (unsigned int i = 0; i < dataset->nOfOutputs; ++i)
+        std::cout << predictedOutputs[i] << ", ";
+
+    std::cout << "\n\t";
+    std::cout << "expected output\n\t";
+    for (unsigned int i = 0; i < dataset->nOfOutputs; ++i)
+        std::cout << dataset->outputs[patternIndex][i] << ", ";
+    std::cout << '\n';
+}
 // Obtain the predicted outputs for a dataset
 void MLP::predict(Dataset* testDataset)
 {
@@ -217,7 +239,8 @@ void MLP::predict(Dataset* testDataset)
     for (uint patternIndex = 0; patternIndex < testDataset->nOfPatterns; ++patternIndex) {
         _feedInputs(testDataset->inputs[patternIndex]);
         _forwardPropagate();
-        _getOutputs(predictedOutputs + patternIndex);
+        for (unsigned int i = 0; i < testDataset->nOfPatterns; ++i)
+            _predict(testDataset, i);
     }
 }
 
@@ -238,11 +261,15 @@ void MLP::trainOnline(Dataset* trainDataset)
 void MLP::runOnlineBackPropagation(Dataset* trainDataset, Dataset* testDataset, int maxiter, double* errorTrain, double* errorTest)
 {
     _randomWeights();
-    double currentError;
+    double currentError, bestError = 1.0;
     for (uint iter = 0; iter < maxiter; ++iter) {
         trainOnline(testDataset);
-        std::cout << "Iteration " << iter << "\t\tTraining error: " << test(trainDataset) << std::endl;
+        currentError = test(trainDataset);
+        if (currentError < bestError)
+            _copyWeights();
+        // std::cout << "Iteration " << iter << "\t\tTraining error: " << currentError << std::endl;
     }
+    _restoreWeights();
     *errorTrain = test(trainDataset);
     *errorTest = test(testDataset);
 }

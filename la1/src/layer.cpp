@@ -16,6 +16,12 @@ void Layer::clearDeltas()
         neuron.clearDeltas();
 }
 
+void Layer::saveDeltas()
+{
+    for (Neuron& neuron : _neurons)
+        neuron.saveDeltas();
+}
+
 void Layer::feed(vector<double> inputs)
 {
     _out.clear();

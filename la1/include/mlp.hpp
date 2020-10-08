@@ -20,6 +20,7 @@ private:
 
     void _clearDeltas();
 
+    void _saveDeltas();
     // Feel all the weights (w) with random numbers between -1 and +1
     void _randomWeights();
 
@@ -61,6 +62,8 @@ private:
     Layer& _lastLayer() { return _layers[_layers.size() - 1]; }
 
     double* _outputPointer();
+
+    void _predict(Dataset* dataset, const unsigned int& patternIndex);
 
 public:
     // Values of the parameters (they are public and can be updated from outside)

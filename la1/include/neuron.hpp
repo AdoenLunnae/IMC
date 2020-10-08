@@ -47,6 +47,7 @@ public:
     void randomWeights(unsigned int numInputs);
 
     void clearDeltas();
+    void saveDeltas();
 
     void copyWeights();
     void restoreWeights();

@@ -17,7 +17,7 @@ Neuron::Neuron(const int& nOfInputs)
 
 double Neuron::_weightedSum(std::vector<double> inputs)
 {
-    double sum = .0;
+    double sum = -_bias;
     for (unsigned int i = 0; i < inputs.size(); ++i)
         sum += inputs[i] * weight(i);
     return sum;
@@ -33,6 +33,12 @@ void Neuron::clearDeltas()
     _deltaBias = .0;
     for (unsigned int i = 0; i < _deltaW.size(); ++i)
         _deltaW[i] = .0;
+}
+
+void Neuron::saveDeltas()
+{
+    _lastDeltaBias = _deltaBias;
+    _lastDeltaW = _deltaW;
 }
 
 void Neuron::randomWeights(unsigned int numInputs)
@@ -83,7 +89,7 @@ void Neuron::backpropagate(const Layer& nextLayer, int ownIndex)
     double derivative = _sigmoid(_net) * (1 - _sigmoid(_net));
     double sumatory = .0;
 
-    for (Neuron neuron : nextLayer.neurons())
+    for (const Neuron& neuron : nextLayer.neurons())
         sumatory += neuron.delta() * neuron.weight(ownIndex);
 
     delta(sumatory * derivative);
