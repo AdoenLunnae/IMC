@@ -32,9 +32,9 @@ private:
     double _sigmoid(double x) const;
 
 public:
-    Neuron() {}
+    Neuron() { }
     Neuron(const int& nOfInputs);
-    ~Neuron() {}
+    ~Neuron() { }
 
     //Access and edit the weights
     inline double weight(unsigned int index) const { return _weights[index]; }
@@ -63,11 +63,17 @@ public:
     //Calculate the output for some inputs
     void feed(std::vector<double> inputs);
 
+    //Copy the input to the output
+    void passInput(double input)
+    {
+        _out = input;
+    }
+
     //Backpropagate error(output layer)
     void backpropagate(double target);
 
     //Backpropagate error(hidden layer)
-    void backpropagate(const Layer& nextLayer, int ownIndex);
+    void backpropagate(Layer& nextLayer, int ownIndex);
 
     //Update deltaW
     void acummulateChange(const std::vector<double>& layerInput);
@@ -78,8 +84,13 @@ public:
     //Get the weight vector
     std::vector<double> weights() const { return _weights; }
 
+    void weights(const std::vector<double> val) { _weights = val; }
+
     //Get the bias
     double bias() const { return _bias; }
+    void bias(const double& bias) { _bias = bias; }
+
+    void readWeights(std::ifstream& file, const int& nInputs);
 };
 };
 #endif /* NEURON_HPP */

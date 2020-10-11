@@ -1,5 +1,6 @@
 #include "neuron.hpp"
 #include <cmath>
+#include <fstream>
 #include <vector>
 
 using std::vector;
@@ -80,12 +81,12 @@ void Neuron::backpropagate(double target)
     delta(-error * derivative);
 }
 
-void Neuron::backpropagate(const Layer& nextLayer, int ownIndex)
+void Neuron::backpropagate(Layer& nextLayer, int ownIndex)
 {
     double derivative = _sigmoid(_net) * (1 - _sigmoid(_net));
     double sumatory = .0;
 
-    for (const Neuron& neuron : nextLayer.neurons())
+    for (Neuron& neuron : nextLayer.neurons())
         sumatory += neuron.delta() * neuron.weight(ownIndex);
 
     delta(sumatory * derivative);
@@ -105,4 +106,12 @@ void Neuron::weightAdjustement(const double& learningRate, const double& momentu
         _weights[i] = _weights[i] - learningRate * _deltaW[i] - momentumRate * learningRate * _lastDeltaW[i];
 
     _bias = _bias - learningRate * _deltaBias - momentumRate * learningRate * _lastDeltaBias;
+}
+
+void Neuron::readWeights(std::ifstream& file, const int& nInputs)
+{
+    file >> _bias;
+    for (int i = 0; i < nInputs; ++i) {
+        file >> _weights[i];
+    }
 }
