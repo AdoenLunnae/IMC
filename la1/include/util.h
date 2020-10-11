@@ -10,7 +10,7 @@
 #include <cmath>
 #include <cstdlib> // To establish the seed srand() and generate pseudorandom numbers rand()
 namespace util {
-static int* integerRandomVectoWithoutRepeating(int min, int max, int howMany)
+static int* integerRandomVectoWithoutRepeating(int min, int max, int howMany, int** remaining)
 {
     int total = max - min + 1;
     int* numbersToBeSelected = new int[total];
@@ -27,7 +27,7 @@ static int* integerRandomVectoWithoutRepeating(int min, int max, int howMany)
         // all numbers are valid until total-i-1
         numbersToBeSelected[selectedNumber] = numbersToBeSelected[total - i - 1];
     }
-    delete[] numbersToBeSelected;
+    *remaining = numbersToBeSelected;
     return numbersSelected;
 };
 

@@ -27,13 +27,14 @@ int main(int argc, char** argv)
     bool Tflag = 0, wflag = 0, pflag = 0, tflag = 0, iflag = 0, hflag = 0, lflag = 0;
     char *trainFilename = NULL, *wvalue = NULL, *testFilename = NULL;
     int hiddenLayers, maxIterations, neuronsPerLayer;
+    double validationRatio = .0, eta = 0.1, mu = 0.9, decrementFactor = 1.0;
     int c;
 
     opterr = 0;
 
     // a: Option that requires an argument
     // a:: The argument required is optional
-    while ((c = getopt(argc, argv, "i:l:h:t:T:w:p")) != -1) {
+    while ((c = getopt(argc, argv, "d:e:m:v:i:l:h:t:T:w:p")) != -1) {
         // The parameters needed for using the optional prediction mode of Kaggle have been included.
         // You should add the rest of parameters needed for the lab assignment.
         switch (c) {
@@ -64,15 +65,25 @@ int main(int argc, char** argv)
         case 'p':
             pflag = true;
             break;
+        case 'v':
+            validationRatio = atof(optarg);
+            break;
+        case 'e':
+            eta = atof(optarg);
+            break;
+        case 'm':
+            mu = atof(optarg);
+            break;
+        case 'd':
+            decrementFactor = atof(optarg);
+            break;
         case '?':
             if (optopt == 'T' || optopt == 'w' || optopt == 'p' || optopt == 'i' || optopt == 'h' || optopt == 'l')
                 fprintf(stderr, "The option -%c requires an argument.\n", optopt);
             else if (isprint(optopt))
                 fprintf(stderr, "Unknown option `-%c'.\n", optopt);
             else
-                fprintf(stderr,
-                    "Unknown character `\\x%x'.\n",
-                    optopt);
+                fprintf(stderr, "Unknown character `\\x%x'.\n", optopt);
             return EXIT_FAILURE;
         default:
             return EXIT_FAILURE;
@@ -104,6 +115,10 @@ int main(int argc, char** argv)
         // Initialize the network using the topology vector
         mlp.initialize(layers + 2, topology);
 
+        mlp.eta = eta;
+        mlp.mu = mu;
+        mlp.decrementFactor = decrementFactor;
+        mlp.validationRatio = validationRatio;
         // Seed for random numbers
         int seeds[] = { 1, 2, 3, 4, 5 };
         double* testErrors = new double[5];

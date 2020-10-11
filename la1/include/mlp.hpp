@@ -65,6 +65,12 @@ private:
 
     void _predict(Dataset* dataset, const unsigned int& patternIndex);
 
+    void* _splitDataset(Dataset* dataset, Dataset** train, Dataset** validation);
+
+    void _checkEarlyStopping(const double deltaTrainError, const double deltaValidationError, int& itersNoTrainIncrease, int& itersNoValIncrease);
+
+    Dataset* _datasetFromIndexes(Dataset* dataset, int* indexes, int size);
+
 public:
     // Values of the parameters (they are public and can be updated from outside)
     double eta; // Learning rate

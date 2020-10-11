@@ -108,8 +108,11 @@ void MLP::_accumulateChange()
 // Update the network weights, from the first layer to the last one
 void MLP::_weightAdjustment()
 {
-    for (Layer& layer : _layers)
-        layer.weightAdjustement(eta, mu);
+    for (uint i = 0; i < _layers.size(); ++i) {
+        int H = _layers.size() - 1, h = (int)i;
+        double decrement = pow(decrementFactor, h - H);
+        _layers[i].weightAdjustement(eta * decrement, mu);
+    }
 }
 
 // Print the network, i.e. all the weight matrices
@@ -212,6 +215,34 @@ double MLP::test(Dataset* dataset)
     return meanError;
 }
 
+Dataset* MLP::_datasetFromIndexes(Dataset* dataset, int* indexes, int size)
+{
+    Dataset* result = new Dataset;
+
+    result->inputs = new double*[size];
+    result->outputs = new double*[size];
+    result->nOfInputs = dataset->nOfInputs;
+    result->nOfOutputs = dataset->nOfOutputs;
+    result->nOfPatterns = size;
+
+    for (uint i = 0; i < size; ++i) {
+        result->inputs[i] = *new double*(dataset->inputs[indexes[i]]);
+        result->outputs[i] = *new double*(dataset->outputs[indexes[i]]);
+    }
+    return result;
+}
+
+void* MLP::_splitDataset(Dataset* dataset, Dataset** train, Dataset** validation)
+{
+    int valSize = validationRatio * dataset->nOfPatterns;
+    int trainSize = dataset->nOfPatterns - valSize;
+    int* trainingIndexes;
+    int* validationIndexes = util::integerRandomVectoWithoutRepeating(0, dataset->nOfPatterns - 1, valSize, &trainingIndexes);
+
+    *train = _datasetFromIndexes(dataset, trainingIndexes, trainSize);
+    *validation = _datasetFromIndexes(dataset, validationIndexes, valSize);
+}
+
 void MLP::_predict(Dataset* dataset, const unsigned int& patternIndex)
 {
     double* predictedOutputs = new double[dataset->nOfOutputs];
@@ -228,6 +259,7 @@ void MLP::_predict(Dataset* dataset, const unsigned int& patternIndex)
         std::cout << dataset->outputs[patternIndex][i] << ", ";
     std::cout << '\n';
 }
+
 // Obtain the predicted outputs for a dataset
 void MLP::predict(Dataset* testDataset)
 {
@@ -247,11 +279,22 @@ void MLP::predict(Dataset* testDataset)
 // Perform an online training for a specific dataset
 void MLP::trainOnline(Dataset* trainDataset)
 {
-    //int* permutation = util::integerRandomVectoWithoutRepeating(0, trainDataset->nOfPatterns - 1, trainDataset->nOfPatterns);
+    for (uint i = 0; i < trainDataset->nOfPatterns; ++i)
+        _performEpochOnline(trainDataset->inputs[i], trainDataset->outputs[i]);
+}
 
-    for (uint i = 0; i < trainDataset->nOfPatterns; ++i) {
-        //uint patternIndex = permutation[i];
-        _performEpochOnline(trainDataset->inputs[/*patternIndex*/ i], trainDataset->outputs[/*patternIndex*/ i]);
+void MLP::_checkEarlyStopping(const double deltaTrainError, const double deltaValidationError, int& itersNoTrainIncrease, int& itersNoValIncrease)
+{
+    if (deltaTrainError < 0.00001)
+        itersNoTrainIncrease++;
+    else
+        itersNoTrainIncrease = 0;
+
+    if (this->validationRatio > 0.00001) {
+        if (deltaValidationError < 0.00001)
+            itersNoValIncrease++;
+        else
+            itersNoValIncrease = 0;
     }
 }
 
@@ -260,15 +303,56 @@ void MLP::trainOnline(Dataset* trainDataset)
 // Both training and test MSEs should be obtained and stored in errorTrain and errorTest
 void MLP::runOnlineBackPropagation(Dataset* trainDataset, Dataset* testDataset, int maxiter, double* errorTrain, double* errorTest)
 {
+    double currTrainError, bestError = 1.0, currValError, prevTrainError = 1.0, prevValError = 1.0;
+    int iteration = 0, itersNoTrainIncrease = 0, itersNoValIncrease = 0;
+
+    Dataset *train, *validation;
+
+    if (this->validationRatio > 0.00001)
+        _splitDataset(trainDataset, &train, &validation);
+    else
+        train = trainDataset;
+
     _randomWeights();
-    double currentError, bestError = 1.0;
-    for (uint iter = 0; iter < maxiter; ++iter) {
-        trainOnline(testDataset);
-        currentError = test(trainDataset);
-        if (currentError < bestError)
+
+    std::ofstream historyFile("history", std::ios::out);
+
+    historyFile << "0 " << test(train);
+    if (validationRatio > 0.00001)
+        historyFile << " " << test(validation);
+    historyFile << std::endl;
+
+    while ((iteration < maxiter) && (itersNoTrainIncrease < 100) && (itersNoValIncrease < 50)) {
+        iteration++;
+
+        historyFile << iteration;
+
+        trainOnline(train);
+
+        prevTrainError = currTrainError;
+        currTrainError = test(train);
+
+        historyFile << " " << currTrainError;
+
+        if (this->validationRatio > 0.00001) {
+            prevValError = currValError;
+            currValError = test(validation);
+
+            historyFile << " " << currValError;
+        }
+
+        if (currTrainError < bestError) {
+            bestError = currTrainError;
             _copyWeights();
-        // std::cout << "Iteration " << iter << "\t\tTraining error: " << currentError << std::endl;
+        }
+
+        historyFile << std::endl;
+
+        _checkEarlyStopping(currTrainError - prevTrainError, currValError - prevValError, itersNoTrainIncrease, itersNoValIncrease);
     }
+
+    historyFile.close();
+
     _restoreWeights();
     *errorTrain = test(trainDataset);
     *errorTest = test(testDataset);

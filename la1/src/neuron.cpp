@@ -19,7 +19,7 @@ double Neuron::_weightedSum(std::vector<double> inputs)
 {
     double sum = -_bias;
     for (unsigned int i = 0; i < inputs.size(); ++i)
-        sum += inputs[i] * weight(i);
+        sum -= inputs[i] * weight(i);
     return sum;
 }
 
