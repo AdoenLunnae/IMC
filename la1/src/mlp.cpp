@@ -10,7 +10,9 @@
 using std::vector;
 using namespace imc;
 
-void MLP::_freeMemory() {}
+void MLP::_freeMemory()
+{
+}
 
 void MLP::_clearDeltas()
 {
@@ -42,7 +44,7 @@ void MLP::_feedInputs(double* input)
     for (int i = 0; i < _layers[0].numberOfNeurons(); ++i)
         inputVector.push_back(input[i]);
 
-    _layers[0].feed(inputVector);
+    _layers[0].feed(inputVector, true);
 }
 
 // Get the outputs predicted by the network (out vector the output layer) and save them in the vector passed as an argument
@@ -93,7 +95,7 @@ void MLP::_backpropagateError(double* target)
 
     _lastLayer().backpropagate(target);
 
-    for (int i = _layers.size() - 2; i >= 0; --i) {
+    for (int i = _layers.size() - 2; i > 0; --i) {
         _layers[i].backpropagate(_layers[i + 1]);
     }
 }
@@ -101,14 +103,14 @@ void MLP::_backpropagateError(double* target)
 // Accumulate the changes produced by one pattern and save them in deltaW
 void MLP::_accumulateChange()
 {
-    for (uint i = 0; i < _layers.size(); ++i)
+    for (uint i = 1; i < _layers.size(); ++i)
         _layers[i].accumulateChange();
 }
 
 // Update the network weights, from the first layer to the last one
 void MLP::_weightAdjustment()
 {
-    for (uint i = 0; i < _layers.size(); ++i) {
+    for (uint i = 1; i < _layers.size(); ++i) {
         int H = _layers.size() - 1, h = (int)i;
         double decrement = pow(decrementFactor, h - H);
         _layers[i].weightAdjustement(eta * decrement, mu);
@@ -119,7 +121,7 @@ void MLP::_weightAdjustment()
 void MLP::_printNetwork()
 {
     std::cout << "NETWORK WEIGHTS\n===============\n";
-    for (int i = 0; i < _layers.size(); ++i) {
+    for (int i = 1; i < _layers.size(); ++i) {
         std::cout << "Layer " << i << "\n-------" << std::endl;
         _layers[i].printMatrix();
     }
@@ -145,7 +147,7 @@ MLP::MLP()
 }
 
 // DESTRUCTOR: free memory
-MLP::~MLP() {}
+MLP::~MLP() { }
 
 // Allocate memory for the data structures
 // nl is the number of layers and npl is a vetor containing the number of neurons in every layer
@@ -237,9 +239,8 @@ void* MLP::_splitDataset(Dataset* dataset, Dataset** train, Dataset** validation
     *validation = _datasetFromIndexes(dataset, validationIndexes, valSize);
 }
 
-void MLP::_predict(Dataset* dataset, const unsigned int& patternIndex)
+void MLP::_predictPretty(Dataset* dataset, const unsigned int& patternIndex)
 {
-    std::ofstream sine("sine", std::ios_base::app);
     double* predictedOutputs = new double[dataset->nOfOutputs];
     _feedInputs(dataset->inputs[patternIndex]);
     _forwardPropagate();
@@ -252,13 +253,21 @@ void MLP::_predict(Dataset* dataset, const unsigned int& patternIndex)
 
     for (unsigned int i = 0; i < dataset->nOfOutputs; ++i)
         std::cout << predictedOutputs[i] << " ";
-
-    std::cout << "\tError ==> " << _obtainError(dataset->outputs[patternIndex]) << "\n";
-
-    sine << dataset->inputs[patternIndex][0] << " " << dataset->outputs[patternIndex][0] << " " << predictedOutputs[0] << std::endl;
-
-    sine.close();
 }
+
+void MLP::_predict(Dataset* dataset, const unsigned int& patternIndex)
+{
+    double* predictedOutputs = new double[dataset->nOfOutputs];
+    _feedInputs(dataset->inputs[patternIndex]);
+    _forwardPropagate();
+    _getOutputs(&predictedOutputs);
+    std::cout << patternIndex;
+
+    for (unsigned int i = 0; i < dataset->nOfOutputs; ++i)
+        std::cout << "," << predictedOutputs[i];
+    std::cout << "\n";
+}
+
 void MLP::_checkEarlyStopping(const double deltaTrainError, const double deltaValidationError, int& itersNoTrainIncrease, int& itersNoValIncrease)
 {
     if (deltaTrainError < 0.000001)
@@ -286,10 +295,18 @@ void MLP::_performEpochOnline(double* input, double* target)
 }
 
 // Obtain the predicted outputs for a dataset
-void MLP::predict(Dataset* testDataset)
+void MLP::predictPretty(Dataset* testDataset)
 {
     std::cout << "Desired output Vs Expected output (test)\n========================================" << std::endl;
 
+    for (uint patternIndex = 0; patternIndex < testDataset->nOfPatterns; ++patternIndex) {
+        _predictPretty(testDataset, patternIndex);
+    }
+}
+
+void MLP::predict(Dataset* testDataset)
+{
+    std::cout << "Id,Predicted\n";
     for (uint patternIndex = 0; patternIndex < testDataset->nOfPatterns; ++patternIndex) {
         _predict(testDataset, patternIndex);
     }
@@ -307,7 +324,7 @@ void MLP::trainOnline(Dataset* trainDataset)
 // Both training and test MSEs should be obtained and stored in errorTrain and errorTest
 void MLP::runOnlineBackPropagation(Dataset* trainDataset, Dataset* testDataset, int maxiter, double* errorTrain, double* errorTest)
 {
-    double currTrainError, bestError = 1.0, currValError = 0, prevTrainError = 1.0, prevValError = 1.0;
+    double currTrainError = 1.0, bestError = 1.0, currValError = 0, prevTrainError = 1.0, prevValError = 1.0;
     int iteration = 0, itersNoTrainIncrease = 0, itersNoValIncrease = 0;
 
     Dataset *train, *validation;
@@ -338,21 +355,62 @@ void MLP::runOnlineBackPropagation(Dataset* trainDataset, Dataset* testDataset, 
             _copyWeights();
         }
 
-        std::cout << "Iteration " << iteration << "\tTraining error: " << currTrainError << "\tValidation error: " << currValError << std::endl;
-
-        _checkEarlyStopping(currTrainError - prevTrainError, currValError - prevValError, itersNoTrainIncrease, itersNoValIncrease);
+        //std::cout << "Iteration " << iteration << "  Training error: " << currTrainError << "  Validation error: " << currValError << '\r' << std::flush;
+        std::cout << "Iteration " << iteration << "  Training error: " << currTrainError << "  Validation error: " << currValError << '\n';
+        _checkEarlyStopping(prevTrainError - currTrainError, prevValError - currValError, itersNoTrainIncrease, itersNoValIncrease);
     }
 
     _restoreWeights();
     _printNetwork();
-    predict(testDataset);
+    //predict(testDataset);
 
     *errorTrain = test(trainDataset);
     *errorTest = test(testDataset);
 }
 
 // Optional Kaggle: Save the model weights in a textfile
-bool MLP::saveWeights(const char* archivo) {}
+bool MLP::saveWeights(const char* archivo)
+{
+    std::ofstream file(archivo, std::ios::out);
+    file << _layers[0].numberOfNeurons() << " " << _layers.size() - 2 << " " << _layers[_layers.size() - 1].numberOfNeurons() << std::endl;
+    for (int i = 1; i < _layers.size(); ++i) {
+        file << _layers[i].numberOfNeurons() << std::endl;
+        _layers[i].printMatrix(file);
+    }
+
+    file.close();
+}
 
 // Optional Kaggle: Load the model weights from a textfile
-bool MLP::readWeights(const char* archivo) {}
+bool MLP::readWeights(const char* archivo)
+{
+    int nInputs, hiddenLayers, nOutputs, nLayers;
+    int nOfNeurons;
+    std::ifstream file(archivo, std::ios::in);
+    if (!file) {
+        std::cerr << "No se encontró el archivo de pesos. Saliendo." << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    file >> nInputs;
+    file >> hiddenLayers;
+    file >> nOutputs;
+
+    nLayers = hiddenLayers + 2;
+    _layers = *new std::vector<Layer>(nLayers);
+
+    _layers[0] = *new Layer(nInputs, 1);
+
+    for (uint i = 1; i <= hiddenLayers; ++i) {
+        file >> nOfNeurons;
+        _layers[i] = *new Layer(nOfNeurons, _layers[i - 1].numberOfNeurons());
+
+        for (Neuron& neuron : _layers[i].neurons())
+            neuron.readWeights(file, _layers[i - 1].numberOfNeurons());
+    }
+
+    _layers[nLayers - 1] = *new Layer(nOutputs, _layers[hiddenLayers].numberOfNeurons());
+
+    for (Neuron& neuron : _layers[nLayers - 1].neurons())
+        neuron.readWeights(file, _layers[hiddenLayers].numberOfNeurons());
+}

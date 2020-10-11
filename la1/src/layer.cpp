@@ -23,13 +23,17 @@ void Layer::saveDeltas()
         neuron.saveDeltas();
 }
 
-void Layer::feed(vector<double> inputs)
+void Layer::feed(vector<double> inputs, bool isInput)
 {
     _out.clear();
     _input = inputs;
-    for (Neuron& neuron : _neurons) {
-        neuron.feed(inputs);
-        _out.push_back(neuron.out());
+    for (int i = 0; i < _neurons.size(); ++i) {
+        if (!isInput)
+            _neurons[i].feed(inputs);
+        else
+            _neurons[i].passInput(inputs[i]);
+
+        _out.push_back(_neurons[i].out());
     }
 }
 
@@ -51,7 +55,7 @@ void Layer::restoreWeights()
         neuron.restoreWeights();
 }
 
-void Layer::backpropagate(const Layer& nextLayer)
+void Layer::backpropagate(Layer& nextLayer)
 {
     for (int i = 0; i < numberOfNeurons(); ++i)
         _neurons[i].backpropagate(nextLayer, i);
@@ -75,12 +79,12 @@ void Layer::weightAdjustement(const double& learningRate, const double& momentum
         neuron.weightAdjustement(learningRate, momentumRate);
 }
 
-void Layer::printMatrix() const
+void Layer::printMatrix(std::ostream& stream) const
 {
     for (const Neuron& neuron : _neurons) {
-        std::cout << neuron.bias() << "\t";
+        stream << neuron.bias() << "\t";
         for (int i = 0; i < _input.size(); ++i)
-            std::cout << neuron.weight(i) << "\t";
-        std::cout << std::endl;
+            stream << neuron.weight(i) << "\t";
+        stream << std::endl;
     }
 }

@@ -63,6 +63,8 @@ private:
 
     double* _outputPointer();
 
+    void _predictPretty(Dataset* dataset, const unsigned int& patternIndex);
+
     void _predict(Dataset* dataset, const unsigned int& patternIndex);
 
     void* _splitDataset(Dataset* dataset, Dataset** train, Dataset** validation);
@@ -95,9 +97,6 @@ public:
     // Test the network with a dataset and return the MSE
     double test(Dataset* dataset);
 
-    // Obtain the predicted outputs for a dataset
-    void predict(Dataset* testDataset);
-
     // Perform an online training for a specific dataset
     void trainOnline(Dataset* trainDataset);
 
@@ -111,6 +110,12 @@ public:
 
     // Optional Kaggle: Load the model weights from a textfile
     bool readWeights(const char* archivo);
+
+    // Obtain the predicted outputs for a dataset
+    void predictPretty(Dataset* testDataset);
+
+    // Obtain the predicted outputs for a dataset
+    void predict(Dataset* testDataset);
 };
 };
 #endif
