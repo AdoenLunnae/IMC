@@ -57,14 +57,12 @@ void Neuron::randomWeights(unsigned int numInputs)
 
 void Neuron::copyWeights()
 {
-    // std::copy(_weights.begin(), _weights.end(), _weightsCopy.begin());
     _weightsCopy = _weights;
     _biasCopy = _bias;
 }
 
 void Neuron::restoreWeights()
 {
-    //std::copy(_weightsCopy.begin(), _weightsCopy.end(), _weights.begin());
     _weights = _weightsCopy;
     _bias = _biasCopy;
 }
@@ -77,7 +75,6 @@ void Neuron::feed(std::vector<double> inputs)
 
 void Neuron::backpropagate(double target)
 {
-    //delta_j^H = - (d_j - out__j^H) * g'(net_j^H)
     double derivative = _sigmoid(_net) * (1 - _sigmoid(_net));
     double error = target - _out;
     delta(-error * derivative);
@@ -85,7 +82,6 @@ void Neuron::backpropagate(double target)
 
 void Neuron::backpropagate(const Layer& nextLayer, int ownIndex)
 {
-    //delta_j^H = - (Sum_i=0^n_h+1) * g'(net_j^H)
     double derivative = _sigmoid(_net) * (1 - _sigmoid(_net));
     double sumatory = .0;
 

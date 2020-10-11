@@ -1,5 +1,6 @@
 #include "layer.hpp"
 #include "neuron.hpp"
+#include <iostream>
 #include <vector>
 
 using std::vector;
@@ -74,7 +75,12 @@ void Layer::weightAdjustement(const double& learningRate, const double& momentum
         neuron.weightAdjustement(learningRate, momentumRate);
 }
 
-vector<vector<double>> Layer::weightMatrix() const
+void Layer::printMatrix() const
 {
-    vector<vector<double>> matrix = *new vector<vector<double>>(numberOfNeurons());
+    for (const Neuron& neuron : _neurons) {
+        std::cout << neuron.bias() << "\t";
+        for (int i = 0; i < _input.size(); ++i)
+            std::cout << neuron.weight(i) << "\t";
+        std::cout << std::endl;
+    }
 }

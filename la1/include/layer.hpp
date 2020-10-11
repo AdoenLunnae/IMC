@@ -38,7 +38,7 @@ public:
     void accumulateChange();
     void weightAdjustement(const double& learningRate, const double& momentumRate);
 
-    std::vector<std::vector<double>> weightMatrix() const;
+    void printMatrix() const;
 };
 };
 #endif /* LAYER_HPP */

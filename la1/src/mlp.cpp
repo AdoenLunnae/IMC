@@ -116,19 +116,13 @@ void MLP::_weightAdjustment()
 }
 
 // Print the network, i.e. all the weight matrices
-void MLP::_printNetwork() {}
-
-// Perform an epoch: forward propagate the inputs, backpropagate the error and adjust the weights
-// input is the input vector of the pattern and target is the desired output vector of the pattern
-void MLP::_performEpochOnline(double* input, double* target)
+void MLP::_printNetwork()
 {
-    _clearDeltas();
-    _feedInputs(input);
-    _forwardPropagate();
-    _backpropagateError(target);
-    _accumulateChange();
-    _weightAdjustment();
-    _saveDeltas();
+    std::cout << "NETWORK WEIGHTS\n===============\n";
+    for (int i = 0; i < _layers.size(); ++i) {
+        std::cout << "Layer " << i << "\n-------" << std::endl;
+        _layers[i].printMatrix();
+    }
 }
 
 double* MLP::_outputPointer()
@@ -245,34 +239,59 @@ void* MLP::_splitDataset(Dataset* dataset, Dataset** train, Dataset** validation
 
 void MLP::_predict(Dataset* dataset, const unsigned int& patternIndex)
 {
+    std::ofstream sine("sine", std::ios_base::app);
     double* predictedOutputs = new double[dataset->nOfOutputs];
     _feedInputs(dataset->inputs[patternIndex]);
     _forwardPropagate();
     _getOutputs(&predictedOutputs);
-    std::cout << "Pattern " << patternIndex << "\n\tpredicted output\n\t";
-    for (unsigned int i = 0; i < dataset->nOfOutputs; ++i)
-        std::cout << predictedOutputs[i] << ", ";
 
-    std::cout << "\n\t";
-    std::cout << "expected output\n\t";
     for (unsigned int i = 0; i < dataset->nOfOutputs; ++i)
-        std::cout << dataset->outputs[patternIndex][i] << ", ";
-    std::cout << '\n';
+        std::cout << dataset->outputs[patternIndex][i] << " ";
+
+    std::cout << "-- ";
+
+    for (unsigned int i = 0; i < dataset->nOfOutputs; ++i)
+        std::cout << predictedOutputs[i] << " ";
+
+    std::cout << "\tError ==> " << _obtainError(dataset->outputs[patternIndex]) << "\n";
+
+    sine << dataset->inputs[patternIndex][0] << " " << dataset->outputs[patternIndex][0] << " " << predictedOutputs[0] << std::endl;
+
+    sine.close();
+}
+void MLP::_checkEarlyStopping(const double deltaTrainError, const double deltaValidationError, int& itersNoTrainIncrease, int& itersNoValIncrease)
+{
+    if (deltaTrainError < 0.000001)
+        itersNoTrainIncrease++;
+    else
+        itersNoTrainIncrease = 0;
+
+    if (this->validationRatio > 0.00001) {
+        if (deltaValidationError < 0.000001)
+            itersNoValIncrease++;
+        else
+            itersNoValIncrease = 0;
+    }
+}
+
+void MLP::_performEpochOnline(double* input, double* target)
+{
+    _clearDeltas();
+    _feedInputs(input);
+    _forwardPropagate();
+    _backpropagateError(target);
+    _accumulateChange();
+    _weightAdjustment();
+    _saveDeltas();
 }
 
 // Obtain the predicted outputs for a dataset
 void MLP::predict(Dataset* testDataset)
 {
-    double** predictedOutputs = new double*[testDataset->nOfPatterns];
-
-    for (uint i = 0; i < testDataset->nOfPatterns; ++i)
-        predictedOutputs[i] = new double[testDataset->nOfOutputs];
+    std::cout << "Desired output Vs Expected output (test)\n========================================" << std::endl;
 
     for (uint patternIndex = 0; patternIndex < testDataset->nOfPatterns; ++patternIndex) {
-        _feedInputs(testDataset->inputs[patternIndex]);
-        _forwardPropagate();
-        for (unsigned int i = 0; i < testDataset->nOfPatterns; ++i)
-            _predict(testDataset, i);
+        _predict(testDataset, patternIndex);
     }
 }
 
@@ -283,62 +302,35 @@ void MLP::trainOnline(Dataset* trainDataset)
         _performEpochOnline(trainDataset->inputs[i], trainDataset->outputs[i]);
 }
 
-void MLP::_checkEarlyStopping(const double deltaTrainError, const double deltaValidationError, int& itersNoTrainIncrease, int& itersNoValIncrease)
-{
-    if (deltaTrainError < 0.00001)
-        itersNoTrainIncrease++;
-    else
-        itersNoTrainIncrease = 0;
-
-    if (this->validationRatio > 0.00001) {
-        if (deltaValidationError < 0.00001)
-            itersNoValIncrease++;
-        else
-            itersNoValIncrease = 0;
-    }
-}
-
 // Run the traning algorithm for a given number of epochs, using trainDataset
 // Once finished, check the performance of the network in testDataset
 // Both training and test MSEs should be obtained and stored in errorTrain and errorTest
 void MLP::runOnlineBackPropagation(Dataset* trainDataset, Dataset* testDataset, int maxiter, double* errorTrain, double* errorTest)
 {
-    double currTrainError, bestError = 1.0, currValError, prevTrainError = 1.0, prevValError = 1.0;
+    double currTrainError, bestError = 1.0, currValError = 0, prevTrainError = 1.0, prevValError = 1.0;
     int iteration = 0, itersNoTrainIncrease = 0, itersNoValIncrease = 0;
 
     Dataset *train, *validation;
 
-    if (this->validationRatio > 0.00001)
+    if (this->validationRatio > 0.00001) {
         _splitDataset(trainDataset, &train, &validation);
-    else
+        currValError = 1;
+    } else
         train = trainDataset;
 
     _randomWeights();
 
-    std::ofstream historyFile("history", std::ios::out);
-
-    historyFile << "0 " << test(train);
-    if (validationRatio > 0.00001)
-        historyFile << " " << test(validation);
-    historyFile << std::endl;
-
     while ((iteration < maxiter) && (itersNoTrainIncrease < 100) && (itersNoValIncrease < 50)) {
         iteration++;
-
-        historyFile << iteration;
 
         trainOnline(train);
 
         prevTrainError = currTrainError;
         currTrainError = test(train);
 
-        historyFile << " " << currTrainError;
-
         if (this->validationRatio > 0.00001) {
             prevValError = currValError;
             currValError = test(validation);
-
-            historyFile << " " << currValError;
         }
 
         if (currTrainError < bestError) {
@@ -346,14 +338,15 @@ void MLP::runOnlineBackPropagation(Dataset* trainDataset, Dataset* testDataset, 
             _copyWeights();
         }
 
-        historyFile << std::endl;
+        std::cout << "Iteration " << iteration << "\tTraining error: " << currTrainError << "\tValidation error: " << currValError << std::endl;
 
         _checkEarlyStopping(currTrainError - prevTrainError, currValError - prevValError, itersNoTrainIncrease, itersNoValIncrease);
     }
 
-    historyFile.close();
-
     _restoreWeights();
+    _printNetwork();
+    predict(testDataset);
+
     *errorTrain = test(trainDataset);
     *errorTest = test(testDataset);
 }

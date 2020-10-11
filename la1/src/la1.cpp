@@ -98,19 +98,17 @@ int main(int argc, char** argv)
         // Multilayer perceptron object
         MLP mlp;
 
-        // Parameters of the mlp. For example, mlp.eta = value;
-        int iterations = iflag ? maxIterations : 1000; // This should be corrected
-
-        // Read training and test data: call to mlp.readData(...)
+        int iterations = iflag ? maxIterations : 1000;
+        // Read training and test data
         if (!tflag)
-            perror("Specify the train dataset with th -t flag");
+            perror("Specify the train dataset with the -t flag");
 
-        Dataset* trainDataset = mlp.readData(trainFilename); // This should be corrected
-        Dataset* testDataset = Tflag ? mlp.readData(testFilename) : trainDataset; // This should be corrected
+        Dataset* trainDataset = mlp.readData(trainFilename);
+        Dataset* testDataset = Tflag ? mlp.readData(testFilename) : trainDataset;
 
         // Initialize topology vector
         int layers = lflag ? hiddenLayers : 1;
-        int topology[] = { trainDataset->nOfInputs, hflag ? neuronsPerLayer : 5, trainDataset->nOfOutputs }; // This should be corrected
+        int topology[] = { trainDataset->nOfInputs, hflag ? neuronsPerLayer : 5, trainDataset->nOfOutputs };
 
         // Initialize the network using the topology vector
         mlp.initialize(layers + 2, topology);
