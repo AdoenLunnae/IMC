@@ -386,31 +386,34 @@ bool MLP::readWeights(const char* archivo)
 {
     int nInputs, hiddenLayers, nOutputs, nLayers;
     int nOfNeurons;
+    bool correct = true;
     std::ifstream file(archivo, std::ios::in);
     if (!file) {
         std::cerr << "No se encontró el archivo de pesos. Saliendo." << std::endl;
-        exit(EXIT_FAILURE);
+        correct = false;
     }
+    else{
+        file >> nInputs;
+        file >> hiddenLayers;
+        file >> nOutputs;
 
-    file >> nInputs;
-    file >> hiddenLayers;
-    file >> nOutputs;
+        nLayers = hiddenLayers + 2;
+        _layers = *new std::vector<Layer>(nLayers);
 
-    nLayers = hiddenLayers + 2;
-    _layers = *new std::vector<Layer>(nLayers);
+        _layers[0] = *new Layer(nInputs, 1);
 
-    _layers[0] = *new Layer(nInputs, 1);
+        for (uint i = 1; i <= hiddenLayers; ++i) {
+            file >> nOfNeurons;
+            _layers[i] = *new Layer(nOfNeurons, _layers[i - 1].numberOfNeurons());
 
-    for (uint i = 1; i <= hiddenLayers; ++i) {
-        file >> nOfNeurons;
-        _layers[i] = *new Layer(nOfNeurons, _layers[i - 1].numberOfNeurons());
+            for (Neuron& neuron : _layers[i].neurons())
+                neuron.readWeights(file, _layers[i - 1].numberOfNeurons());
+        }
 
-        for (Neuron& neuron : _layers[i].neurons())
-            neuron.readWeights(file, _layers[i - 1].numberOfNeurons());
-    }
+        _layers[nLayers - 1] = *new Layer(nOutputs, _layers[hiddenLayers].numberOfNeurons());
 
-    _layers[nLayers - 1] = *new Layer(nOutputs, _layers[hiddenLayers].numberOfNeurons());
-
-    for (Neuron& neuron : _layers[nLayers - 1].neurons())
-        neuron.readWeights(file, _layers[hiddenLayers].numberOfNeurons());
+        for (Neuron& neuron : _layers[nLayers - 1].neurons())
+            neuron.readWeights(file, _layers[hiddenLayers].numberOfNeurons());
+        }
+    return correct;
 }
