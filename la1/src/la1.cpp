@@ -123,12 +123,12 @@ int main(int argc, char** argv)
         double* trainErrors = new double[5];
         double bestTestError = 1;
         for (int i = 0; i < 5; i++) {
-            cout << "**********" << endl;
-            cout << "SEED " << seeds[i] << endl;
-            cout << "**********" << endl;
+            //    cout << "**********" << endl;
+            //    cout << "SEED " << seeds[i] << endl;
+            //    cout << "**********" << endl;
             srand(seeds[i]);
             mlp.runOnlineBackPropagation(trainDataset, testDataset, iterations, &(trainErrors[i]), &(testErrors[i]));
-            cout << "We end!! => Final test error: " << testErrors[i] << endl;
+            //    cout << "We end!! => Final test error: " << testErrors[i] << endl;
             //mlp.predict(testDataset);
 
             // We save the weights every time we find a better model
@@ -137,7 +137,7 @@ int main(int argc, char** argv)
                 bestTestError = testErrors[i];
             }
         }
-        cout << "WE HAVE FINISHED WITH ALL THE SEEDS" << endl;
+        //cout << "WE HAVE FINISHED WITH ALL THE SEEDS" << endl;
 
         double averageTestError = 0, stdTestError = 0;
         double averageTrainError = 0, stdTrainError = 0;

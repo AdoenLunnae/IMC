@@ -1,4 +1,5 @@
 #include "mlp.hpp"
+#include "macros.hpp"
 #include "util.h"
 #include <cmath>
 #include <cstring>
@@ -147,7 +148,7 @@ MLP::MLP()
 }
 
 // DESTRUCTOR: free memory
-MLP::~MLP() { }
+MLP::~MLP() {}
 
 // Allocate memory for the data structures
 // nl is the number of layers and npl is a vetor containing the number of neurons in every layer
@@ -247,12 +248,15 @@ void MLP::_predictPretty(Dataset* dataset, const unsigned int& patternIndex)
     _getOutputs(&predictedOutputs);
 
     for (unsigned int i = 0; i < dataset->nOfOutputs; ++i)
-        std::cout << dataset->outputs[patternIndex][i] << " ";
+        std::cout << dataset->outputs[patternIndex][i] << (i == dataset->nOfOutputs - 1 ? "" : ", ");
 
-    std::cout << "-- ";
+    std::cout << "\t--\t";
 
     for (unsigned int i = 0; i < dataset->nOfOutputs; ++i)
-        std::cout << predictedOutputs[i] << " ";
+        std::cout << predictedOutputs[i] << (i == dataset->nOfOutputs - 1 ? "" : ", ");
+
+    double error = _obtainError(dataset->outputs[patternIndex]);
+    std::cout << "\t==>\t" << error << std::endl;
 }
 
 void MLP::_predict(Dataset* dataset, const unsigned int& patternIndex)
@@ -270,13 +274,13 @@ void MLP::_predict(Dataset* dataset, const unsigned int& patternIndex)
 
 void MLP::_checkEarlyStopping(const double deltaTrainError, const double deltaValidationError, int& itersNoTrainIncrease, int& itersNoValIncrease)
 {
-    if (deltaTrainError < 0.000001)
+    if (deltaTrainError < 1e-5)
         itersNoTrainIncrease++;
     else
         itersNoTrainIncrease = 0;
 
-    if (this->validationRatio > 0.00001) {
-        if (deltaValidationError < 0.000001)
+    if (this->validationRatio > 1e-5) {
+        if (deltaValidationError < 1e-5)
             itersNoValIncrease++;
         else
             itersNoValIncrease = 0;
@@ -297,7 +301,7 @@ void MLP::_performEpochOnline(double* input, double* target)
 // Obtain the predicted outputs for a dataset
 void MLP::predictPretty(Dataset* testDataset)
 {
-    std::cout << "Desired output Vs Expected output (test)\n========================================" << std::endl;
+    std::cout << "Desired output Vs Expected output (test) ==> Error\n===============================================" << std::endl;
 
     for (uint patternIndex = 0; patternIndex < testDataset->nOfPatterns; ++patternIndex) {
         _predictPretty(testDataset, patternIndex);
@@ -337,7 +341,7 @@ void MLP::runOnlineBackPropagation(Dataset* trainDataset, Dataset* testDataset, 
 
     _randomWeights();
 
-    while ((iteration < maxiter) && (itersNoTrainIncrease < 100) && (itersNoValIncrease < 50)) {
+    while ((iteration < maxiter) && (itersNoTrainIncrease < 50) && (itersNoValIncrease < 50)) {
         iteration++;
 
         trainOnline(train);
@@ -355,14 +359,13 @@ void MLP::runOnlineBackPropagation(Dataset* trainDataset, Dataset* testDataset, 
             _copyWeights();
         }
 
-        //std::cout << "Iteration " << iteration << "  Training error: " << currTrainError << "  Validation error: " << currValError << '\r' << std::flush;
         std::cout << "Iteration " << iteration << "  Training error: " << currTrainError << "  Validation error: " << currValError << '\n';
         _checkEarlyStopping(prevTrainError - currTrainError, prevValError - currValError, itersNoTrainIncrease, itersNoValIncrease);
     }
-
+    std::cout << '\n';
     _restoreWeights();
     _printNetwork();
-    //predict(testDataset);
+    predictPretty(testDataset);
 
     *errorTrain = test(trainDataset);
     *errorTest = test(testDataset);
@@ -391,8 +394,7 @@ bool MLP::readWeights(const char* archivo)
     if (!file) {
         std::cerr << "No se encontró el archivo de pesos. Saliendo." << std::endl;
         correct = false;
-    }
-    else{
+    } else {
         file >> nInputs;
         file >> hiddenLayers;
         file >> nOutputs;
@@ -414,6 +416,6 @@ bool MLP::readWeights(const char* archivo)
 
         for (Neuron& neuron : _layers[nLayers - 1].neurons())
             neuron.readWeights(file, _layers[hiddenLayers].numberOfNeurons());
-        }
+    }
     return correct;
 }
