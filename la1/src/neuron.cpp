@@ -2,6 +2,7 @@
 #include <cmath>
 #include <fstream>
 #include <vector>
+#include <cstdlib>
 
 using std::vector;
 using namespace imc;
