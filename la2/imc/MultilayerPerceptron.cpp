@@ -35,6 +35,11 @@ double randomDouble(double Low, double High)
     return Low + randSample * (High - Low);
 }
 
+double MultilayerPerceptron::sigmoid(const double x)
+{
+    return 1 / (1 + exp(x));
+}
+
 // ------------------------------
 // Constructor: Default values for all the parameters
 MultilayerPerceptron::MultilayerPerceptron()
@@ -72,12 +77,16 @@ void MultilayerPerceptron::randomWeights()
 // Feed the input neurons of the network with a vector passed as an argument
 void MultilayerPerceptron::feedInputs(double* input)
 {
+    for (int i = 0; i < layers[0].nOfNeurons; ++i)
+        layers[0].neurons[i].out = input[i];
 }
 
 // ------------------------------
 // Get the outputs predicted by the network (out vector of the output layer) and save them in the vector passed as an argument
 void MultilayerPerceptron::getOutputs(double* output)
 {
+    for (int i = 0; i < layers[nOfLayers - 1].nOfNeurons; ++i)
+        output[i] = layers[nOfLayers - 1].neurons[i].out;
 }
 
 // ------------------------------
@@ -96,6 +105,16 @@ void MultilayerPerceptron::restoreWeights()
 // Calculate and propagate the outputs of the neurons, from the first layer until the last one -->-->
 void MultilayerPerceptron::forwardPropagate()
 {
+    for (int i = 1; i < nOfLayers; ++i) {
+        for (int j = 0; j < layers[i].nOfNeurons; ++j) {
+            Neuron* neuron = layers[i].neurons + j;
+            double net = -neuron->w[0];
+            for (int k = 0; k < layers[i - 1].nOfNeurons; ++k)
+                //We add 1 to the weight index to account for the bias w_0
+                net -= neuron->w[k + 1] * layers[i - 1].neurons[k].out;
+            neuron->out = sigmoid(net);
+        }
+    }
 }
 
 // ------------------------------
@@ -138,6 +157,13 @@ void MultilayerPerceptron::printNetwork()
 // errorFunction=1 => Cross Entropy // errorFunction=0 => MSE
 void MultilayerPerceptron::performEpoch(double* input, double* target, int errorFunction)
 {
+    this->feedInputs(input);
+    this->forwardPropagate();
+    this->backpropagateError(target, errorFunction);
+    this->accumulateChange();
+
+    if (online)
+        weightAdjustment();
 }
 
 // ------------------------------
@@ -151,6 +177,12 @@ Dataset* MultilayerPerceptron::readData(const char* fileName)
 // errorFunction=1 => Cross Entropy // errorFunction=0 => MSE
 void MultilayerPerceptron::train(Dataset* trainDataset, int errorFunction)
 {
+    for (uint i = 0; i < trainDataset->nOfPatterns; ++i) {
+        performEpoch(trainDataset->inputs[i], trainDataset->outputs[i], errorFunction);
+
+        if (!online)
+            weightAdjustment();
+    }
 }
 
 // ------------------------------
@@ -287,7 +319,6 @@ void MultilayerPerceptron::runBackPropagation(Dataset* trainDataset, Dataset* te
     }
 
     *errorTest = test(testDataset, errorFunction);
-    ;
     *errorTrain = minTrainError;
     *ccrTest = testClassification(testDataset);
     *ccrTrain = testClassification(trainDataset);
