@@ -84,6 +84,7 @@ private:
     void performEpoch(double* input, double* target, int errorFunction);
 
     static double sigmoid(const double x);
+    static double dSigmoid(const double x);
 
 public:
     // Values of the parameters (they are public and can be updated from outside)

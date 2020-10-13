@@ -40,6 +40,11 @@ double MultilayerPerceptron::sigmoid(const double x)
     return 1 / (1 + exp(x));
 }
 
+double MultilayerPerceptron::dSigmoid(const double x)
+{
+    return sigmoid(x) * (1 - sigmoid(x));
+}
+
 // ------------------------------
 // Constructor: Default values for all the parameters
 MultilayerPerceptron::MultilayerPerceptron()
