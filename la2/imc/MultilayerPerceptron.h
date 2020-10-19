@@ -86,6 +86,12 @@ private:
     static double sigmoid(const double x);
     static double dSigmoid(const double x);
 
+    void applySigmoid(int layerIndex);
+    void applySoftmax(int layerIndex);
+
+    double getMSE(const double* target);
+    double getCE(const double* target);
+
 public:
     // Values of the parameters (they are public and can be updated from outside)
     double eta; // Learning rate

@@ -57,6 +57,24 @@ MultilayerPerceptron::MultilayerPerceptron()
 // Give values to Layer* layers
 int MultilayerPerceptron::initialize(int nl, int npl[])
 {
+    layers = new Layer[nl];
+
+    nOfLayers = nl;
+
+    int currLayerNeurons;
+
+    for (int i = 0; i < nl; ++i) {
+        if (i == 0)
+            currLayerNeurons = npl[0];
+        else if (i == nl - 1)
+            currLayerNeurons = npl[2];
+        else
+            currLayerNeurons = npl[1];
+
+        layers[i] = *new Layer;
+        layers[i].neurons = new Neuron[currLayerNeurons];
+        layers[i].nOfNeurons = currLayerNeurons;
+    }
 }
 
 // ------------------------------
@@ -76,6 +94,75 @@ void MultilayerPerceptron::freeMemory()
 // Fill all the weights (w) with random numbers between -1 and +1
 void MultilayerPerceptron::randomWeights()
 {
+    int inputsPerNeuron = 1;
+
+    for (int i = 1; i < nOfLayers; ++i) {
+        inputsPerNeuron = layers[i - 1].nOfNeurons + 1;
+        for (int j = 0; j <= inputsPerNeuron; ++j) {
+            Neuron* neuron = layers[i].neurons + j;
+            neuron->w = new double[inputsPerNeuron];
+
+            for (int k = 0; k < inputsPerNeuron; ++k)
+                neuron->w[k] = randomDouble(-1, 1);
+        }
+    }
+}
+
+void MultilayerPerceptron::applySigmoid(int layerIndex)
+{
+    for (int j = 0; j < layers[layerIndex].nOfNeurons; ++j) {
+        Neuron* neuron = layers[layerIndex].neurons + j;
+        double net = -neuron->w[0];
+
+        for (int k = 0; k < layers[layerIndex - 1].nOfNeurons; ++k)
+            net -= neuron->w[k + 1] * layers[layerIndex - 1].neurons[k].out; //We add 1 to the weight index to account for the bias w_0
+
+        neuron->out = sigmoid(net);
+    }
+}
+
+void MultilayerPerceptron::applySoftmax(int layerIndex)
+{
+    double *net = new double[layers[layerIndex].nOfNeurons], sumatoryOfExp = 0;
+
+    for (int j = 0; j < layers[layerIndex].nOfNeurons; ++j) {
+        Neuron* neuron = layers[layerIndex].neurons + j;
+        net[j] = -neuron->w[0];
+
+        for (int k = 0; k < layers[layerIndex - 1].nOfNeurons; ++k)
+            net[j] -= neuron->w[k + 1] * layers[layerIndex - 1].neurons[k].out; //We add 1 to the weight index to account for the bias w_0
+
+        sumatoryOfExp += exp(net[j]);
+    }
+
+    for (int j = 0; j < layers[layerIndex].nOfNeurons; ++j)
+        layers[layerIndex].neurons[j].out = exp(net[j]) / sumatoryOfExp;
+}
+
+double MultilayerPerceptron::getMSE(const double* target)
+{
+    double* prediction;
+    getOutputs(prediction);
+
+    double squaredSum = .0;
+
+    for (int i = 0; i < layers[nOfLayers - 1].nOfNeurons; ++i)
+        squaredSum += pow((prediction[i] - target[i]), 2);
+
+    return squaredSum / layers[nOfLayers - 1].nOfNeurons;
+}
+
+double MultilayerPerceptron::getCE(const double* target)
+{
+    double* prediction;
+    getOutputs(prediction);
+
+    double sumatory = .0;
+
+    for (int i = 0; i < layers[nOfLayers - 1].nOfNeurons; ++i)
+        sumatory += target[i] * log(prediction[i]);
+
+    return sumatory / layers[nOfLayers - 1].nOfNeurons;
 }
 
 // ------------------------------
@@ -110,15 +197,19 @@ void MultilayerPerceptron::restoreWeights()
 // Calculate and propagate the outputs of the neurons, from the first layer until the last one -->-->
 void MultilayerPerceptron::forwardPropagate()
 {
-    for (int i = 1; i < nOfLayers; ++i) {
-        for (int j = 0; j < layers[i].nOfNeurons; ++j) {
-            Neuron* neuron = layers[i].neurons + j;
-            double net = -neuron->w[0];
-            for (int k = 0; k < layers[i - 1].nOfNeurons; ++k)
-                //We add 1 to the weight index to account for the bias w_0
-                net -= neuron->w[k + 1] * layers[i - 1].neurons[k].out;
-            neuron->out = sigmoid(net);
-        }
+    for (int i = 1; i < nOfLayers - 1; ++i)
+        applySigmoid(i);
+
+    switch (outputFunction) {
+    case 0:
+        applySigmoid(nOfLayers - 1);
+        break;
+    case 1:
+        applySoftmax(nOfLayers - 1);
+        break;
+    default:
+        std::cerr << "Invalid output function" << std::endl;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -127,6 +218,15 @@ void MultilayerPerceptron::forwardPropagate()
 // errorFunction=1 => Cross Entropy // errorFunction=0 => MSE
 double MultilayerPerceptron::obtainError(double* target, int errorFunction)
 {
+    switch (errorFunction) {
+    case 0:
+        return getMSE(target);
+    case 1:
+        return getCE(target);
+    default:
+        std::cerr << "Código de función de error inválido. Saliendo." << std::endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 // ------------------------------
