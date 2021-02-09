@@ -44,6 +44,8 @@ def train_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta, o
         RBF neural network based on hybrid supervised/unsupervised training.
         We run 5 executions with different seeds.
     """
+    test_file = f'datasets/csv/test_{train_file}.csv'
+    train_file = f'datasets/csv/train_{train_file}.csv'
 
     if not pred:
 
@@ -57,13 +59,17 @@ def train_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta, o
         test_ccrs = np.empty(5)
 
         for s in range(1, 6):
+            """
             print("-----------")
             print("Seed: %d" % s)
             print("-----------")
+            """
             np.random.seed(s)
             train_mses[s-1], test_mses[s-1], train_ccrs[s-1], test_ccrs[s-1] = \
-                train_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outputs,
+                train_rbf(train_file, test_file, classification, 0.05, l2, eta, outputs,
                           model and "{}/{}.pickle".format(model, s) or "")
+
+        """
             print("Training MSE: %f" % train_mses[s-1])
             print("Test MSE: %f" % test_mses[s-1])
             print("Training CCR: %.2f%%" % train_ccrs[s-1])
@@ -72,13 +78,11 @@ def train_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta, o
         print("******************")
         print("Summary of results")
         print("******************")
-        print("Training MSE: %f +- %f" %
-              (np.mean(train_mses), np.std(train_mses)))
-        print("Test MSE: %f +- %f" % (np.mean(test_mses), np.std(test_mses)))
-        print("Training CCR: %.2f%% +- %.2f%%" %
-              (np.mean(train_ccrs), np.std(train_ccrs)))
-        print("Test CCR: %.2f%% +- %.2f%%" %
-              (np.mean(test_ccrs), np.std(test_ccrs)))
+        """
+        print(
+            f"MSE --- Train: {np.mean(train_mses)} Test: {np.mean(test_mses)}")
+        print(
+            f"CCR --- Train: {np.mean(train_ccrs)} Test: {np.mean(test_ccrs)}")
 
     else:
         # KAGGLE
@@ -155,7 +159,6 @@ def train_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outputs
     # Obtain num_rbf from ratio_rbf
     n_patterns = train_inputs.shape[0]
     num_rbf = int(round(n_patterns * ratio_rbf))
-    print("Number of RBFs used: %d" % (num_rbf))
     kmeans, distances, centers = clustering(classification, train_inputs,
                                             train_outputs, num_rbf)
 
@@ -165,6 +168,8 @@ def train_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outputs
 
     if classification:
         logreg = logreg_classification(r_matrix, train_outputs, l2, eta)
+        import ipdb
+        # ipdb.set_trace()
     else:
         coefficients = invert_matrix_regression(r_matrix, train_outputs)
     """
@@ -179,6 +184,7 @@ def train_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outputs
     if model_file != "":
         save_obj = {
             'classification': classification,
+            'outputs': outputs,
             'radii': radii,
             'kmeans': kmeans
         }
@@ -215,11 +221,17 @@ def train_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outputs
         """
         train_predictions = np.dot(r_matrix, coefficients)
         test_predictions = np.dot(test_r_matrix, coefficients)
-        train_ccr, test_ccr = 0, 0
-    train_mse = sklearn.metrics.mean_squared_error(
-        train_outputs, train_predictions)
-    test_mse = sklearn.metrics.mean_squared_error(
-        test_outputs, test_predictions)
+        rounded_train_p = np.round(train_predictions)
+        rounded_test_p = np.round(test_predictions)
+
+        train_ccr = sklearn.metrics.accuracy_score(
+            train_outputs, rounded_train_p) * 100
+        test_ccr = sklearn.metrics.accuracy_score(
+            test_outputs, rounded_test_p) * 100
+        train_mse = sklearn.metrics.mean_squared_error(
+            train_outputs, train_predictions)
+        test_mse = sklearn.metrics.mean_squared_error(
+            test_outputs, test_predictions)
     return train_mse, test_mse, train_ccr, test_ccr
 
 
@@ -456,7 +468,7 @@ def logreg_classification(r_matrix, train_outputs, l2, eta):
     return logreg
 
 
-def predict(test_file, model_file):
+def predict(test_file, model_file, outputs=0):
     """ Performs a prediction with RBFNN model
         It obtains the predictions of a RBFNN model for a test file, using two files, one
         with the test data and one with the model
@@ -474,13 +486,13 @@ def predict(test_file, model_file):
             Predictions obtained with the model and the test file inputs
     """
     test_df = pd.read_csv(test_file, header=None)
-    test_inputs = test_df.values[:, :]
 
     with open(model_file, 'rb') as f:
         saved_data = pickle.load(f)
 
-    import ipdb
-    ipdb.set_trace()
+    n_columns = test_df.shape[1]
+    test_inputs = test_df.values[:, :n_columns-outputs]
+
     radii = saved_data['radii']
     classification = saved_data['classification']
     kmeans = saved_data['kmeans']
