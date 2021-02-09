@@ -34,3 +34,6 @@
 # CMake build directories
 Release/
 Debug/
+*.tar.*
+*.pdf
+*.PDF
