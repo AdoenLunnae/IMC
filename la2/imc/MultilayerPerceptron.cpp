@@ -34,7 +34,7 @@ double randomDouble(double Low, double High)
 
 double MultilayerPerceptron::sigmoid(const double x)
 {
-    return 1 / (1 + exp(x));
+    return 1 / (1 + exp(-x));
 }
 
 int MultilayerPerceptron::getMaxOutput()
@@ -58,28 +58,36 @@ MultilayerPerceptron::MultilayerPerceptron()
 
 int MultilayerPerceptron::initialize(int nl, int npl[])
 {
+    nOfLayers = nl;
     layers = new Layer[nl];
 
-    nOfLayers = nl;
-
-    for (int i = 0; i < nl; ++i) {
+    for (int i = 0; i < nl; ++i)
+    {
 
         layers[i] = *new Layer;
-        layers[i].neurons = new Neuron[npl[i]];
         layers[i].nOfNeurons = npl[i];
+        layers[i].neurons = new Neuron[npl[i]];
 
-        if (i != 0) {
-            int inputsPerNeuron = npl[i - 1] + 1;
-            for (int j = 0; j < layers[i].nOfNeurons; ++j) {
-                Neuron* neuron = layers[i].neurons + j;
+        int inputsPerNeuron = i != 0 ? npl[i - 1] + 1 : 1; // +1 to account for the bias input
 
-                neuron->w = new double[inputsPerNeuron];
-                neuron->deltaW = new double[inputsPerNeuron];
-                neuron->wCopy = new double[inputsPerNeuron];
-                neuron->lastDeltaW = new double[inputsPerNeuron];
+        //We initialize layer 0 weights too to avoid problems freeing memory
+        for (int j = 0; j < layers[i].nOfNeurons; ++j)
+        {
+            Neuron *neuron = layers[i].neurons + j;
+
+            neuron->w = new double[inputsPerNeuron];
+            neuron->deltaW = new double[inputsPerNeuron];
+            neuron->wCopy = new double[inputsPerNeuron];
+            neuron->lastDeltaW = new double[inputsPerNeuron];
+
+            for (int k = 0; k < inputsPerNeuron; ++k)
+            {
+                neuron->deltaW[k] = 0;
+                neuron->lastDeltaW[k] = 0;
             }
         }
     }
+    return 0;
 }
 
 MultilayerPerceptron::~MultilayerPerceptron()
@@ -96,10 +104,12 @@ void MultilayerPerceptron::randomWeights()
 {
     int inputsPerNeuron = 1;
 
-    for (int i = 1; i < nOfLayers; ++i) {
+    for (int i = 1; i < nOfLayers; ++i)
+    {
         inputsPerNeuron = layers[i - 1].nOfNeurons + 1;
-        for (int j = 0; j < layers[i].nOfNeurons; ++j) {
-            Neuron* neuron = layers[i].neurons + j;
+        for (int j = 0; j < layers[i].nOfNeurons; ++j)
+        {
+            Neuron *neuron = layers[i].neurons + j;
 
             for (int k = 0; k < inputsPerNeuron; ++k)
                 neuron->w[k] = randomDouble(-1, 1);
@@ -109,8 +119,9 @@ void MultilayerPerceptron::randomWeights()
 
 void MultilayerPerceptron::applySigmoid(int layerIndex)
 {
-    for (int j = 0; j < layers[layerIndex].nOfNeurons; ++j) {
-        Neuron* neuron = layers[layerIndex].neurons + j;
+    for (int j = 0; j < layers[layerIndex].nOfNeurons; ++j)
+    {
+        Neuron *neuron = layers[layerIndex].neurons + j;
         double net = neuron->w[0];
 
         for (int k = 0; k < layers[layerIndex - 1].nOfNeurons; ++k)
@@ -122,27 +133,28 @@ void MultilayerPerceptron::applySigmoid(int layerIndex)
 
 void MultilayerPerceptron::applySoftmax(int layerIndex)
 {
-    double *net = new double[layers[layerIndex].nOfNeurons], sumatoryOfExp = 0;
+    double *net = new double[layers[layerIndex].nOfNeurons], summationOfExp = 0;
 
-    for (int j = 0; j < layers[layerIndex].nOfNeurons; ++j) {
-        Neuron* neuron = layers[layerIndex].neurons + j;
+    for (int j = 0; j < layers[layerIndex].nOfNeurons; ++j)
+    {
+        Neuron *neuron = layers[layerIndex].neurons + j;
         net[j] = neuron->w[0];
 
         for (int k = 0; k < layers[layerIndex - 1].nOfNeurons; ++k)
             net[j] += neuron->w[k + 1] * layers[layerIndex - 1].neurons[k].out; //We add 1 to the weight index to account for the bias w_0
 
-        sumatoryOfExp += exp(net[j]);
+        summationOfExp += exp(net[j]);
     }
 
     for (int j = 0; j < layers[layerIndex].nOfNeurons; ++j)
-        layers[layerIndex].neurons[j].out = exp(net[j]) / sumatoryOfExp;
+        layers[layerIndex].neurons[j].out = exp(net[j]) / summationOfExp;
 
     delete[] net;
 }
 
-double MultilayerPerceptron::getMSE(const double* target)
+double MultilayerPerceptron::getMSE(const double *target)
 {
-    double* prediction = new double[layers[nOfLayers - 1].nOfNeurons];
+    double *prediction = new double[layers[nOfLayers - 1].nOfNeurons];
 
     getOutputs(prediction);
 
@@ -155,28 +167,28 @@ double MultilayerPerceptron::getMSE(const double* target)
     return squaredSum / layers[nOfLayers - 1].nOfNeurons;
 }
 
-double MultilayerPerceptron::getCE(const double* target)
+double MultilayerPerceptron::getCE(const double *target)
 {
-    double* prediction = new double[layers[nOfLayers - 1].nOfNeurons];
+    double *prediction = new double[layers[nOfLayers - 1].nOfNeurons];
     getOutputs(prediction);
 
-    double sumatory = .0;
+    double summation = .0;
 
     for (int i = 0; i < layers[nOfLayers - 1].nOfNeurons; ++i)
-        sumatory -= (target[i] * log(prediction[i]));
+        summation -= (target[i] * log(prediction[i]));
 
     delete[] prediction;
 
-    return sumatory / layers[nOfLayers - 1].nOfNeurons;
+    return summation / layers[nOfLayers - 1].nOfNeurons;
 }
 
-void MultilayerPerceptron::feedInputs(double* input)
+void MultilayerPerceptron::feedInputs(double *input)
 {
     for (int i = 0; i < layers[0].nOfNeurons; ++i)
         layers[0].neurons[i].out = input[i];
 }
 
-void MultilayerPerceptron::getOutputs(double* output)
+void MultilayerPerceptron::getOutputs(double *output)
 {
     for (int i = 0; i < layers[nOfLayers - 1].nOfNeurons; ++i)
         output[i] = layers[nOfLayers - 1].neurons[i].out;
@@ -184,10 +196,12 @@ void MultilayerPerceptron::getOutputs(double* output)
 
 void MultilayerPerceptron::copyWeights()
 {
-    for (int layerIndex = 1; layerIndex < nOfLayers; ++layerIndex) {
-        Layer* layer = layers + layerIndex;
-        for (int neuronIndex = 0; neuronIndex < layer->nOfNeurons; ++neuronIndex) {
-            Neuron* neuron = layer->neurons + neuronIndex;
+    for (int layerIndex = 1; layerIndex < nOfLayers; ++layerIndex)
+    {
+        Layer *layer = layers + layerIndex;
+        for (int neuronIndex = 0; neuronIndex < layer->nOfNeurons; ++neuronIndex)
+        {
+            Neuron *neuron = layer->neurons + neuronIndex;
             int nWeights = layers[layerIndex - 1].nOfNeurons + 1;
 
             memcpy(neuron->wCopy, neuron->w, sizeof(double) * nWeights);
@@ -197,10 +211,12 @@ void MultilayerPerceptron::copyWeights()
 
 void MultilayerPerceptron::restoreWeights()
 {
-    for (int layerIndex = 1; layerIndex < nOfLayers; ++layerIndex) {
-        Layer* layer = layers + layerIndex;
-        for (int neuronIndex = 0; neuronIndex < layer->nOfNeurons; ++neuronIndex) {
-            Neuron* neuron = layer->neurons + neuronIndex;
+    for (int layerIndex = 1; layerIndex < nOfLayers; ++layerIndex)
+    {
+        Layer *layer = layers + layerIndex;
+        for (int neuronIndex = 0; neuronIndex < layer->nOfNeurons; ++neuronIndex)
+        {
+            Neuron *neuron = layer->neurons + neuronIndex;
             int nWeights = layers[layerIndex - 1].nOfNeurons + 1;
 
             memcpy(neuron->w, neuron->wCopy, sizeof(double) * nWeights);
@@ -213,7 +229,8 @@ void MultilayerPerceptron::forwardPropagate()
     for (int i = 1; i < nOfLayers - 1; ++i)
         applySigmoid(i);
 
-    switch (outputFunction) {
+    switch (outputFunction)
+    {
     case 0:
         applySigmoid(nOfLayers - 1);
         break;
@@ -226,32 +243,38 @@ void MultilayerPerceptron::forwardPropagate()
     }
 }
 
-double MultilayerPerceptron::obtainError(double* target, int errorFunction)
+double MultilayerPerceptron::obtainError(double *target, int errorFunction)
 {
-    switch (errorFunction) {
+    switch (errorFunction)
+    {
     case 0:
         return getMSE(target);
     case 1:
         return getCE(target);
     default:
-        std::cerr << "Código de función de error inválido. Saliendo." << std::endl;
+        std::cerr << "Onvalid error function code. Exiting." << std::endl;
         exit(EXIT_FAILURE);
     }
 }
 
-void MultilayerPerceptron::backpropagateError(double* target, int errorFunction)
+void MultilayerPerceptron::backpropagateError(double *target, int errorFunction)
 {
-    for (int i = 0; i < layers[nOfLayers - 1].nOfNeurons; ++i) {
-        Neuron* neuron = layers[nOfLayers - 1].neurons + i;
-        if (outputFunction == 0) { // For sigmoid output
+    for (int i = 0; i < layers[nOfLayers - 1].nOfNeurons; ++i)
+    {
+        Neuron *neuron = layers[nOfLayers - 1].neurons + i;
+        if (outputFunction == 0)
+        { // For sigmoid output
             if (errorFunction == 0)
                 neuron->delta = -(target[i] - neuron->out) * neuron->out * (1 - neuron->out);
             else
                 neuron->delta = -(target[i] / neuron->out) * neuron->out * (1 - neuron->out);
-        } else { //For softmax output
+        }
+        else
+        { //For softmax output
             neuron->delta = 0;
-            for (int j = 0; j < layers[nOfLayers - 1].nOfNeurons; ++j) {
-                Neuron* otherNeuron = layers[nOfLayers - 1].neurons + j;
+            for (int j = 0; j < layers[nOfLayers - 1].nOfNeurons; ++j)
+            {
+                Neuron *otherNeuron = layers[nOfLayers - 1].neurons + j;
                 int aux = (i == j) ? 1 : 0;
                 if (errorFunction == 0)
                     neuron->delta -= (target[j] - otherNeuron->out) * neuron->out * (aux - otherNeuron->out);
@@ -260,15 +283,18 @@ void MultilayerPerceptron::backpropagateError(double* target, int errorFunction)
             }
         }
 
-        for (int h = nOfLayers - 2; h > 0; --h) {
-            for (int i = 0; i < layers[h].nOfNeurons; ++i) {
-                Neuron* neuron = layers[h].neurons + i;
-                double sumatory = 0;
-                for (int j = 0; j < layers[h + 1].nOfNeurons; ++j) {
-                    Neuron* otherNeuron = layers[h + 1].neurons + j;
-                    sumatory += otherNeuron->delta * otherNeuron->w[i + 1];
+        for (int h = nOfLayers - 2; h > 0; --h)
+        {
+            for (int i = 0; i < layers[h].nOfNeurons; ++i)
+            {
+                Neuron *neuron = layers[h].neurons + i;
+                double summation = 0;
+                for (int j = 0; j < layers[h + 1].nOfNeurons; ++j)
+                {
+                    Neuron *otherNeuron = layers[h + 1].neurons + j;
+                    summation += otherNeuron->delta * otherNeuron->w[i + 1];
                 }
-                neuron->delta = sumatory * neuron->out * (1 - neuron->out);
+                neuron->delta = summation * neuron->out * (1 - neuron->out);
             }
         }
     }
@@ -276,11 +302,14 @@ void MultilayerPerceptron::backpropagateError(double* target, int errorFunction)
 
 void MultilayerPerceptron::accumulateChange()
 {
-    for (int i = 1; i < nOfLayers; ++i) {
-        for (int j = 0; j < layers[i].nOfNeurons; ++j) {
-            Neuron* neuron = layers[i].neurons + j;
-            for (int k = 0; k < layers[i - 1].nOfNeurons; ++k) {
-                Neuron* prevLayerNeuron = layers[i - 1].neurons + k;
+    for (int i = 1; i < nOfLayers; ++i)
+    {
+        for (int j = 0; j < layers[i].nOfNeurons; ++j)
+        {
+            Neuron *neuron = layers[i].neurons + j;
+            for (int k = 0; k < layers[i - 1].nOfNeurons; ++k)
+            {
+                Neuron *prevLayerNeuron = layers[i - 1].neurons + k;
                 neuron->deltaW[k + 1] += neuron->delta * prevLayerNeuron->out;
             }
             neuron->deltaW[0] += neuron->delta;
@@ -290,10 +319,12 @@ void MultilayerPerceptron::accumulateChange()
 
 void MultilayerPerceptron::weightAdjustment(const int nOfPatterns)
 {
-    for (int i = 1; i < nOfLayers; ++i) {
+    for (int i = 1; i < nOfLayers; ++i)
+    {
         double decrement = pow(decrementFactor, -(nOfLayers - i + 1));
-        for (int j = 0; j < layers[i].nOfNeurons; ++j) {
-            Neuron* neuron = layers[i].neurons + j;
+        for (int j = 0; j < layers[i].nOfNeurons; ++j)
+        {
+            Neuron *neuron = layers[i].neurons + j;
             for (int k = 0; k < layers[i - 1].nOfNeurons; ++k)
                 neuron->w[k + 1] -= (decrement * eta * neuron->deltaW[k + 1] / nOfPatterns) + (decrement * mu * eta * neuron->lastDeltaW[k + 1] / nOfPatterns);
 
@@ -304,9 +335,11 @@ void MultilayerPerceptron::weightAdjustment(const int nOfPatterns)
 
 void MultilayerPerceptron::printNetwork()
 {
-    for (int i = 1; i < nOfLayers; i++) {
+    for (int i = 1; i < nOfLayers; i++)
+    {
         std::cout << "Layer " << i << std::endl;
-        for (int j = 0; j < layers[i].nOfNeurons; j++) {
+        for (int j = 0; j < layers[i].nOfNeurons; j++)
+        {
             for (int k = 0; k < layers[i - 1].nOfNeurons + 1; k++)
                 if (!(outputFunction == 1 && (i == (nOfLayers - 1)) && (k == (layers[i].nOfNeurons - 1))))
                     std::cout << layers[i].neurons[j].w[k] << " ";
@@ -316,7 +349,7 @@ void MultilayerPerceptron::printNetwork()
     }
 }
 
-void MultilayerPerceptron::performEpoch(double* input, double* target, int errorFunction)
+void MultilayerPerceptron::performEpoch(double *input, double *target, int errorFunction)
 {
     if (online)
         this->clearDeltaWeights();
@@ -334,20 +367,23 @@ void MultilayerPerceptron::performEpoch(double* input, double* target, int error
 void MultilayerPerceptron::clearDeltaWeights()
 {
     for (int i = 1; i < nOfLayers; ++i)
-        for (int j = 0; j < layers[i].nOfNeurons; ++j) {
+        for (int j = 0; j < layers[i].nOfNeurons; ++j)
+        {
             int nWeights = layers[i - 1].nOfNeurons + 1;
-            for (int k = 0; k < nWeights; ++k) {
-                memcpy(layers[i].neurons[j].lastDeltaW, layers[i].neurons[j].w, nWeights * sizeof(double));
+            for (int k = 0; k < nWeights; ++k)
+            {
+                memcpy(layers[i].neurons[j].lastDeltaW, layers[i].neurons[j].deltaW, nWeights * sizeof(double));
                 layers[i].neurons[j].deltaW[k] = 0;
             }
         }
 }
 
-Dataset* MultilayerPerceptron::readData(const char* fileName)
+Dataset *MultilayerPerceptron::readData(const char *fileName)
 {
-    Dataset* dataset = new Dataset;
+    Dataset *dataset = new Dataset;
     std::ifstream dataFile(fileName, std::ifstream::in);
-    if (!dataFile.is_open()) {
+    if (!dataFile.is_open())
+    {
         std::cerr << "Error opening file " << fileName << ". Exiting.\n";
         exit(EXIT_FAILURE);
     }
@@ -355,10 +391,11 @@ Dataset* MultilayerPerceptron::readData(const char* fileName)
     dataFile >> dataset->nOfInputs;
     dataFile >> dataset->nOfOutputs;
     dataFile >> dataset->nOfPatterns;
-    dataset->inputs = new double*[dataset->nOfPatterns];
-    dataset->outputs = new double*[dataset->nOfPatterns];
+    dataset->inputs = new double *[dataset->nOfPatterns];
+    dataset->outputs = new double *[dataset->nOfPatterns];
 
-    for (uint patternIndex = 0; patternIndex < dataset->nOfPatterns; ++patternIndex) {
+    for (uint patternIndex = 0; patternIndex < dataset->nOfPatterns; ++patternIndex)
+    {
         dataset->inputs[patternIndex] = new double[dataset->nOfInputs];
         dataset->outputs[patternIndex] = new double[dataset->nOfOutputs];
 
@@ -374,24 +411,25 @@ Dataset* MultilayerPerceptron::readData(const char* fileName)
     return dataset;
 }
 
-void MultilayerPerceptron::train(Dataset* trainDataset, int errorFunction)
+void MultilayerPerceptron::train(Dataset *trainDataset, int errorFunction)
 {
 
     if (!online)
         this->clearDeltaWeights();
 
     for (uint i = 0; i < nOfTrainingPatterns; ++i)
-        performEpoch(trainDataset->inputs[i], trainDataset->outputs[i], errorFunction);
+        performEpoch((trainDataset->inputs)[i], (trainDataset->outputs)[i], errorFunction);
 
     if (!online)
         this->weightAdjustment(nOfTrainingPatterns);
 }
 
-double MultilayerPerceptron::test(Dataset* dataset, int errorFunction)
+double MultilayerPerceptron::test(Dataset *dataset, int errorFunction)
 {
     double accumulatedError = .0;
 
-    for (int i = 0; i < dataset->nOfPatterns; ++i) {
+    for (int i = 0; i < dataset->nOfPatterns; ++i)
+    {
         feedInputs(dataset->inputs[i]);
         forwardPropagate();
 
@@ -401,11 +439,12 @@ double MultilayerPerceptron::test(Dataset* dataset, int errorFunction)
     return (accumulatedError / dataset->nOfPatterns);
 }
 
-double MultilayerPerceptron::testClassification(Dataset* dataset)
+double MultilayerPerceptron::testClassification(Dataset *dataset)
 {
-    double* predictedOutputs = new double[layers[nOfLayers - 1].nOfNeurons];
+    double *predictedOutputs = new double[layers[nOfLayers - 1].nOfNeurons];
     int correctGuesses = 0;
-    for (int patternIndex = 0; patternIndex < dataset->nOfPatterns; ++patternIndex) {
+    for (int patternIndex = 0; patternIndex < dataset->nOfPatterns; ++patternIndex)
+    {
         feedInputs(dataset->inputs[patternIndex]);
         forwardPropagate();
         getOutputs(predictedOutputs);
@@ -423,43 +462,55 @@ double MultilayerPerceptron::testClassification(Dataset* dataset)
     return (double)correctGuesses * 100.0 / dataset->nOfPatterns;
 }
 
-Dataset* MultilayerPerceptron::datasetFromIndexes(Dataset* dataset, int* indexes, int size)
+Dataset *MultilayerPerceptron::datasetFromIndexes(Dataset *original, int *indexes, int size)
 {
-    Dataset* result = new Dataset();
+    Dataset *result = new Dataset();
 
-    result->inputs = new double*[size];
-    result->outputs = new double*[size];
-    result->nOfInputs = dataset->nOfInputs;
-    result->nOfOutputs = dataset->nOfOutputs;
     result->nOfPatterns = size;
+    result->nOfInputs = original->nOfInputs;
+    result->nOfOutputs = original->nOfOutputs;
+    result->inputs = new double *[size];
+    result->outputs = new double *[size];
 
-    for (uint i = 0; i < size; ++i) {
-        result->inputs[i] = *new double*(dataset->inputs[indexes[i]]);
-        result->outputs[i] = *new double*(dataset->outputs[indexes[i]]);
+    for (uint i = 0; i < size; ++i)
+    {
+        result->inputs[i] = new double[result->nOfInputs];
+        result->outputs[i] = new double[result->nOfOutputs];
+
+        memcpy(result->inputs[i], original->inputs[indexes[i]], result->nOfInputs * sizeof(double));
+        memcpy(result->outputs[i], original->outputs[indexes[i]], result->nOfOutputs * sizeof(double));
     }
     return result;
 }
 
-void MultilayerPerceptron::splitDataset(Dataset* dataset, Dataset** train, Dataset** validation)
+void MultilayerPerceptron::splitDataset(Dataset *original, Dataset **tD, Dataset **vD)
 {
-    int valSize = validationRatio * nOfTrainingPatterns;
-    int trainSize = nOfTrainingPatterns - valSize;
-    int* trainingIndexes;
-    int* validationIndexes = util::integerRandomVectorWithoutRepeating(0, dataset->nOfPatterns - 1, valSize, &trainingIndexes);
+    int nPatterns = original->nOfPatterns;
 
-    *validation = datasetFromIndexes(dataset, validationIndexes, valSize);
-    *train = datasetFromIndexes(dataset, trainingIndexes, trainSize);
+    int valSize = validationRatio * nPatterns;
+    int trainSize = nPatterns - valSize;
+
+    int *valIndexes, *trainIndexes = new int[trainSize];
+
+    valIndexes = intRandomVectorWithoutRepeating(nPatterns - 1, valSize, trainIndexes);
+
+    *tD = datasetFromIndexes(original, trainIndexes, trainSize);
+    *vD = datasetFromIndexes(original, valIndexes, valSize);
+
+    delete[] valIndexes;
+    delete[] trainIndexes;
 }
 
-void MultilayerPerceptron::predict(Dataset* dataset)
+void MultilayerPerceptron::predict(Dataset *dataset)
 {
     int i;
     int numSalidas = layers[nOfLayers - 1].nOfNeurons;
-    double* salidas = new double[numSalidas];
+    double *salidas = new double[numSalidas];
 
     cout << "Id,Category" << endl;
 
-    for (i = 0; i < dataset->nOfPatterns; i++) {
+    for (i = 0; i < dataset->nOfPatterns; i++)
+    {
 
         feedInputs(dataset->inputs[i]);
         forwardPropagate();
@@ -471,7 +522,7 @@ void MultilayerPerceptron::predict(Dataset* dataset)
     }
 }
 
-void MultilayerPerceptron::runBackPropagation(Dataset* trainDataset, Dataset* testDataset, int maxiter, double* errorTrain, double* errorTest, double* ccrTrain, double* ccrTest, int errorFunction)
+void MultilayerPerceptron::runBackPropagation(Dataset *trainDataset, Dataset *testDataset, int maxiter, double *errorTrain, double *errorTest, double *ccrTrain, double *ccrTest, int errorFunction)
 {
     int countTrain = 0;
 
@@ -479,7 +530,6 @@ void MultilayerPerceptron::runBackPropagation(Dataset* trainDataset, Dataset* te
 
     double minTrainError = 0;
     int iterWithoutImproving = 0;
-    nOfTrainingPatterns = trainDataset->nOfPatterns;
 
     Dataset *validationDataset = NULL, *learningDataset = NULL;
     double validationError = 0, previousValidationError = 0;
@@ -492,29 +542,31 @@ void MultilayerPerceptron::runBackPropagation(Dataset* trainDataset, Dataset* te
 
     nOfTrainingPatterns = learningDataset->nOfPatterns;
 
-    do {
+    do
+    {
 
         train(learningDataset, errorFunction);
 
         double trainError = test(learningDataset, errorFunction);
-        if (countTrain == 0 || trainError < minTrainError) {
+
+        if (countTrain == 0 || (minTrainError - trainError) > 1e-5)
+        {
             minTrainError = trainError;
             copyWeights();
             iterWithoutImproving = 0;
-        } else if ((trainError - minTrainError) < 0.00001)
-            iterWithoutImproving = 0;
+        }
         else
             iterWithoutImproving++;
 
-        if (iterWithoutImproving == 50) {
+        if (iterWithoutImproving == 50)
+        {
             cout << "We exit because the training is not improving!!" << endl;
             restoreWeights();
             countTrain = maxiter - 1;
         }
 
-        countTrain++;
-
-        if (validationDataset != NULL) {
+        if (validationDataset != NULL)
+        {
             if (previousValidationError == 0)
                 previousValidationError = 999999999.9999999999;
             else
@@ -526,14 +578,15 @@ void MultilayerPerceptron::runBackPropagation(Dataset* trainDataset, Dataset* te
                 iterWithoutImprovingValidation = 0;
             else
                 iterWithoutImprovingValidation++;
-            if (iterWithoutImprovingValidation == 50) {
+            if (iterWithoutImprovingValidation == 50)
+            {
                 cout << "We exit because validation is not improving!!" << endl;
                 restoreWeights();
                 countTrain = maxiter - 1;
             }
         }
+        countTrain++;
         cout << "Iteration " << countTrain << "\t Training error: " << trainError << "\t Validation error: " << validationError << endl;
-
     } while (countTrain < maxiter);
 
     if ((iterWithoutImprovingValidation != 50) && (iterWithoutImproving != 50))
@@ -545,8 +598,9 @@ void MultilayerPerceptron::runBackPropagation(Dataset* trainDataset, Dataset* te
 
     cout << "Desired output Vs Obtained output (test)" << endl;
     cout << "=========================================" << endl;
-    for (int i = 0; i < testDataset->nOfPatterns; i++) {
-        double* prediction = new double[testDataset->nOfOutputs];
+    for (int i = 0; i < testDataset->nOfPatterns; i++)
+    {
+        double *prediction = new double[testDataset->nOfOutputs];
 
         // Feed the inputs and propagate the values
         feedInputs(testDataset->inputs[i]);
@@ -564,7 +618,7 @@ void MultilayerPerceptron::runBackPropagation(Dataset* trainDataset, Dataset* te
     *ccrTrain = testClassification(learningDataset);
 }
 
-bool MultilayerPerceptron::saveWeights(const char* fileName)
+bool MultilayerPerceptron::saveWeights(const char *fileName)
 {
     // Object for writing the file
     ofstream f(fileName);
@@ -593,7 +647,7 @@ bool MultilayerPerceptron::saveWeights(const char* fileName)
     return true;
 }
 
-bool MultilayerPerceptron::readWeights(const char* fileName)
+bool MultilayerPerceptron::readWeights(const char *fileName)
 {
     ifstream f(fileName);
 
@@ -601,13 +655,14 @@ bool MultilayerPerceptron::readWeights(const char* fileName)
         return false;
 
     int nl;
-    int* npl;
+    int *npl;
 
     f >> nl;
 
     npl = new int[nl];
 
-    for (int i = 0; i < nl; i++) {
+    for (int i = 0; i < nl; i++)
+    {
         f >> npl[i];
     }
     f >> outputFunction;

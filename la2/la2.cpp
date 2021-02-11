@@ -179,8 +179,9 @@ int main(int argc, char** argv)
         cout << "Train CCR (Mean +- SD): " << trainAverageCCR << " +- " << trainStdCCR << endl;
         cout << "Test CCR (Mean +- SD): " << testAverageCCR << " +- " << testStdCCR << endl;
 
-        delete testDataset;
         delete trainDataset;
+        if (Tflag)
+            delete testDataset;
         delete[] trainErrors;
         delete[] testErrors;
         delete[] trainCCRs;

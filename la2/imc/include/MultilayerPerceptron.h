@@ -17,11 +17,19 @@ struct Neuron {
     double* deltaW; /* Change to be applied to every weight (\Delta_{ji}^h (t))*/
     double* lastDeltaW; /* Last change applied to the every weight (\Delta_{ji}^h (t-1))*/
     double* wCopy; /* Copy of the input weights */
+    ~Neuron()
+    {
+        delete[] w;
+        delete[] wCopy;
+        delete[] deltaW;
+        delete[] lastDeltaW;
+    }
 };
 
 struct Layer {
     int nOfNeurons; /* Number of neurons of the layer*/
     Neuron* neurons; /* Vector with the neurons of the layer*/
+    ~Layer() { delete[] neurons; }
 };
 
 struct Dataset {

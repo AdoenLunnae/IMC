@@ -15,16 +15,17 @@
 #include <string.h>
 #include <math.h>
 
-#include "util.h"
 #include "MultilayerPerceptron.h"
+#include "util.h"
 
 using namespace imc;
 using namespace std;
+using namespace util;
 
 int main(int argc, char **argv)
 {
     // Process arguments of the command line
-    bool pflag = 0, wflag = 0;
+    bool pflag = 0, wflag = 0, Tflag = 0;
     char *testFilename = NULL, *trainFilename = NULL, *weightsFilename = NULL;
     int maxIter = 1000, neuronsPerLayer = 5, hiddenLayers = 1;
     double eta = .1, mu = .9, validationRatio = .0, decrementFactor = 1;
@@ -44,6 +45,7 @@ int main(int argc, char **argv)
             trainFilename = optarg;
             break;
         case 'T':
+            Tflag = true;
             testFilename = optarg;
             break;
         case 'i':
@@ -119,6 +121,7 @@ int main(int argc, char **argv)
         topology[hiddenLayers + 2 - 1] = trainDataset->nOfOutputs;
 
         mlp.initialize(hiddenLayers + 2, topology);
+        delete[] topology;
 
         // Seed for random numbers
         int seeds[] = {1, 2, 3, 4, 5};
@@ -149,8 +152,15 @@ int main(int argc, char **argv)
 
         // Obtain training and test averages and standard deviations
 
-        util::getStatistics(testErrors, 5, averageTestError, stdTestError);
-        util::getStatistics(trainErrors, 5, averageTrainError, stdTrainError);
+        getStatistics(testErrors, 5, averageTestError, stdTestError);
+        getStatistics(trainErrors, 5, averageTrainError, stdTrainError);
+
+        delete[] trainErrors;
+        delete[] testErrors;
+        delete trainDataset;
+
+        if (Tflag)
+            delete testDataset;
 
         cout << "FINAL REPORT" << endl;
         cout << "************" << endl;
@@ -186,6 +196,7 @@ int main(int argc, char **argv)
 
         mlp.predict(testDataset);
 
+        delete testDataset;
         return EXIT_SUCCESS;
     }
 }

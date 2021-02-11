@@ -7,4 +7,4 @@ project(MultilayerPerceptronRegression VERSION 1.0)
 
 include_directories(imc/include)
 
-add_executable(la1 la1.cpp imc/MultilayerPerceptron.cpp)
+add_executable(la1 imc/util.cpp imc/MultilayerPerceptron.cpp la1.cpp)

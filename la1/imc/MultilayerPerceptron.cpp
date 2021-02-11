@@ -16,8 +16,6 @@
 #include <limits>
 #include <math.h>
 
-#define ROUND_2_INT(f) ((int)(f >= 0.0 ? (f + 0.5) : (f - 0.5)))
-
 using namespace imc;
 using namespace std;
 using namespace util;
@@ -38,34 +36,32 @@ MultilayerPerceptron::MultilayerPerceptron()
 // Give values to Layer* layers
 int MultilayerPerceptron::initialize(int nl, int npl[])
 {
-	layers = new Layer[nl];
-
 	nOfLayers = nl;
+	layers = new Layer[nl];
 
 	for (int i = 0; i < nl; ++i)
 	{
 
 		layers[i] = *new Layer;
-		layers[i].neurons = new Neuron[npl[i]];
 		layers[i].nOfNeurons = npl[i];
+		layers[i].neurons = new Neuron[npl[i]];
 
-		if (i != 0)
+		int inputsPerNeuron = i != 0 ? npl[i - 1] + 1 : 1; // +1 to account for the bias input
+
+		//We initialize layer 0 weights too to avoid problems freeing memory
+		for (int j = 0; j < layers[i].nOfNeurons; ++j)
 		{
-			int inputsPerNeuron = npl[i - 1] + 1; // +1 to account for the bias input
-			for (int j = 0; j < layers[i].nOfNeurons; ++j)
+			Neuron *neuron = layers[i].neurons + j;
+
+			neuron->w = new double[inputsPerNeuron];
+			neuron->deltaW = new double[inputsPerNeuron];
+			neuron->wCopy = new double[inputsPerNeuron];
+			neuron->lastDeltaW = new double[inputsPerNeuron];
+
+			for (int k = 0; k < inputsPerNeuron; ++k)
 			{
-				Neuron *neuron = layers[i].neurons + j;
-
-				neuron->w = new double[inputsPerNeuron];
-				neuron->deltaW = new double[inputsPerNeuron];
-				neuron->wCopy = new double[inputsPerNeuron];
-				neuron->lastDeltaW = new double[inputsPerNeuron];
-
-				for (int k = 0; k < inputsPerNeuron; ++k)
-				{
-					neuron->deltaW[k] = 0;
-					neuron->lastDeltaW[k] = 0;
-				}
+				neuron->deltaW[k] = 0;
+				neuron->lastDeltaW[k] = 0;
 			}
 		}
 	}
@@ -109,30 +105,19 @@ Dataset *MultilayerPerceptron::datasetFromIndexes(Dataset *original, int *indexe
 void MultilayerPerceptron::generateValidationData(Dataset *original, Dataset **tD, Dataset **vD)
 {
 	int nPatterns = original->nOfPatterns;
+
 	int valSize = validationRatio * nPatterns;
 	int trainSize = nPatterns - valSize;
 
-	bool *isValidationPattern = boolRandomVector(nPatterns, valSize);
+	int *valIndexes, *trainIndexes = new int[trainSize];
 
-	int *valIndexes = new int[valSize], *trainIndexes = new int[trainSize];
-	int vIndex = 0, tIndex = 0;
-
-	for (int i = 0; i < nPatterns; ++i)
-	{
-		if (isValidationPattern[i])
-		{
-			valIndexes[vIndex] = i;
-			vIndex++;
-		}
-		else
-		{
-			trainIndexes[tIndex] = i;
-			tIndex++;
-		}
-	}
+	valIndexes = intRandomVectorWithoutRepeating(nPatterns - 1, valSize, trainIndexes);
 
 	*tD = datasetFromIndexes(original, trainIndexes, trainSize);
 	*vD = datasetFromIndexes(original, valIndexes, valSize);
+
+	delete[] valIndexes;
+	delete[] trainIndexes;
 }
 
 // ------------------------------
@@ -174,21 +159,9 @@ double MultilayerPerceptron::randomDouble(const double &min, const double &max)
 Dataset *MultilayerPerceptron::permutateDataset(Dataset *dataset)
 {
 	int size = dataset->nOfPatterns;
-	int *idx = util::intRandomVectorWithoutRepeating(size, size);
-	Dataset *permutated = new Dataset;
+	int *idx = intRandomVectorWithoutRepeating(size, size);
+	Dataset *permutated = datasetFromIndexes(dataset, idx, size);
 
-	permutated->nOfPatterns = size;
-	permutated->nOfInputs = dataset->nOfInputs;
-	permutated->nOfOutputs = dataset->nOfOutputs;
-	permutated->inputs = new double *[size];
-	permutated->outputs = new double *[size];
-	for (int i = 0; i < size; ++i)
-	{
-		permutated->inputs[i] = new double[permutated->nOfInputs];
-		permutated->outputs[i] = new double[permutated->nOfOutputs];
-		memcpy(permutated->inputs[i], dataset->inputs[idx[i]], dataset->nOfInputs * sizeof(int));
-		memcpy(permutated->outputs[i], dataset->outputs[idx[i]], dataset->nOfOutputs * sizeof(int));
-	}
 	return permutated;
 }
 // ------------------------------
@@ -275,6 +248,8 @@ double MultilayerPerceptron::obtainError(double *target)
 	for (int i = 0; i < size; ++i)
 		squaredSum += pow((prediction[i] - target[i]), 2);
 
+	delete[] prediction;
+
 	return squaredSum / size;
 }
 
@@ -295,13 +270,13 @@ void MultilayerPerceptron::backpropagateError(double *target)
 		for (int j = 0; j < layers[h].nOfNeurons; ++j)
 		{
 			Neuron *neuron = layers[h].neurons + j;
-			double sumatory = 0;
+			double summation = 0;
 			for (int i = 0; i < layers[h + 1].nOfNeurons; ++i)
 			{
 				Neuron *otherNeuron = layers[h + 1].neurons + i;
-				sumatory += otherNeuron->delta * otherNeuron->w[j + 1];
+				summation += otherNeuron->delta * otherNeuron->w[j + 1];
 			}
-			neuron->delta = sumatory * neuron->out * (1 - neuron->out);
+			neuron->delta = summation * neuron->out * (1 - neuron->out);
 		}
 	}
 }
@@ -468,6 +443,7 @@ void MultilayerPerceptron::predict(Dataset *testDataset)
 			cout << "," << obtained[j];
 		cout << endl;
 	}
+	delete[] obtained;
 }
 
 // ------------------------------
@@ -490,8 +466,6 @@ void MultilayerPerceptron::runOnlineBackPropagation(Dataset *trainDataset, Datas
 	// Generate validation data
 	if (validationRatio > 0 && validationRatio < 1)
 	{
-		t = new Dataset;
-		v = new Dataset;
 		generateValidationData(trainDataset, &t, &v);
 	}
 	else
@@ -502,9 +476,10 @@ void MultilayerPerceptron::runOnlineBackPropagation(Dataset *trainDataset, Datas
 	do
 	{
 		trainOnline(t);
+
 		trainError = test(t);
 
-		if (countTrain == 0 || trainError < minTrainError)
+		if (countTrain == 0 || (minTrainError - trainError) > 1e-5)
 		{
 			minTrainError = trainError;
 			copyWeights();
@@ -529,12 +504,11 @@ void MultilayerPerceptron::runOnlineBackPropagation(Dataset *trainDataset, Datas
 
 			valError = test(v);
 
-			if (valError < previousValError)
-				iterWithoutImprovingVal = 0;
-			else if ((previousValError - valError) > 0.00001)
+			if (previousValError - valError > 1e-5)
 				iterWithoutImprovingVal = 0;
 			else
 				iterWithoutImprovingVal++;
+
 			if (iterWithoutImprovingVal == 50)
 			{
 				cout << "We exit because validation is not improving!!" << endl;

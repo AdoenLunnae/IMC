@@ -19,12 +19,20 @@ namespace imc
 		double *deltaW;		/* Change to be applied to every weight (\Delta_{ji}^h (t))*/
 		double *lastDeltaW; /* Last change applied to the every weight (\Delta_{ji}^h (t-1))*/
 		double *wCopy;		/* Copy of the input weights */
+		~Neuron()
+		{
+			delete[] w;
+			delete[] wCopy;
+			delete[] deltaW;
+			delete[] lastDeltaW;
+		}
 	};
 
 	struct Layer
 	{
 		int nOfNeurons;	 /* Number of neurons of the layer*/
 		Neuron *neurons; /* Vector with the neurons of the layer*/
+		~Layer() { delete[] neurons; }
 	};
 
 	struct Dataset
@@ -34,6 +42,17 @@ namespace imc
 		int nOfPatterns;  /* Number of patterns */
 		double **inputs;  /* Matrix with the inputs of the problem */
 		double **outputs; /* Matrix with the outputs of the problem */
+		~Dataset()
+		{
+			for (int i = 0; i < nOfInputs; ++i)
+				delete[] inputs[i];
+
+			for (int i = 0; i < nOfOutputs; ++i)
+				delete[] outputs[i];
+
+			delete[] inputs;
+			delete[] outputs;
+		}
 	};
 
 	class MultilayerPerceptron
